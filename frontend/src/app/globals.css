@@ -1,0 +1,228 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+:root {
+  /* Brand */
+  /* 5.25:1 against white button text; #7c5cfc measured 4.38 and failed AA. */
+  --primary: #6d4ef0;
+  --primary-bright: #b9a6ff;
+  --primary-dim: rgb(124 92 252 / 0.14);
+  --primary-border: rgb(124 92 252 / 0.36);
+  --secondary: #4facfe;
+
+  /* Surfaces */
+  --bg: #0e0e1a;
+  --surface: #16162a;
+  --surface-raised: #1d1d33;
+  --border: rgb(255 255 255 / 0.09);
+  --border-strong: rgb(255 255 255 / 0.2);
+
+  /* Text — muted was previously as low as 0.2 alpha, well under WCAG AA on this
+     background. These clear 4.5:1 for body text and 3:1 for large/secondary. */
+  --text: #f2f0ff;
+  --text-muted: #a7a3c0;
+  --text-faint: #8783a0;
+
+  --success: #86efac;
+  --warning: #fcd34d;
+  --danger: #fca5a5;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --container-max: 1240px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+a { color: var(--primary-bright); }
+
+/* Every interactive element gets a visible keyboard focus ring. The old hover-only
+   styling left keyboard users with no indication of where they were. */
+:focus-visible {
+  outline: 2px solid var(--primary-bright);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button { font-family: inherit; }
+
+/* ─── Shared primitives ──────────────────────────────────────────────────── */
+
+.page {
+  min-height: 100vh;
+  padding: 5.5rem 0 4rem;
+}
+
+.container {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.container-narrow {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.pageTitle {
+  font-size: clamp(1.75rem, 4vw, 2.4rem);
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+  background: linear-gradient(135deg, #fff 0%, var(--primary-bright) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  /* Gradient text has no accessible colour; this is the fallback if clip fails. */
+  color: var(--text);
+}
+
+.pageSub {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin: 0 0 2rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.6rem 1.15rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgb(255 255 255 / 0.05);
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.18s, border-color 0.18s, transform 0.18s;
+}
+
+.btn:hover:not(:disabled) { background: rgb(255 255 255 / 0.1); border-color: var(--border-strong); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btnPrimary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.btnPrimary:hover:not(:disabled) { background: #8f72ff; border-color: #8f72ff; }
+
+.btnGhost { background: var(--primary-dim); border-color: var(--primary-border); color: var(--primary-bright); }
+.btnGhost:hover:not(:disabled) { background: rgb(124 92 252 / 0.24); }
+
+.input,
+.select {
+  background: rgb(255 255 255 / 0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.9rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  width: 100%;
+}
+
+.input::placeholder { color: var(--text-faint); }
+.input:focus, .select:focus { border-color: var(--primary-border); outline: none; }
+.input:focus-visible, .select:focus-visible { outline: 2px solid var(--primary-bright); outline-offset: 1px; }
+.select option { background: var(--surface-raised); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: rgb(255 255 255 / 0.05);
+}
+
+.srOnly:focus-visible {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  width: auto;
+  height: auto;
+  clip: auto;
+  margin: 0;
+  padding: 0.6rem 1rem;
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  z-index: 100;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skeleton {
+  background: rgb(255 255 255 / 0.05);
+  border-radius: var(--radius-md);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 4.5rem 1.5rem;
+  color: var(--text-muted);
+}
+
+.emptyIcon { font-size: 2.75rem; margin-bottom: 0.75rem; }
+
+.errorBox {
+  background: rgb(239 68 68 / 0.1);
+  border: 1px solid rgb(239 68 68 / 0.3);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1.1rem;
+  font-size: 0.875rem;
+}
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

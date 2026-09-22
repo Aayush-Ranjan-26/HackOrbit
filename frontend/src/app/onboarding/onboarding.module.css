@@ -1,0 +1,103 @@
+.form { display: flex; flex-direction: column; gap: 1.75rem; }
+
+.fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
+
+.legend {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  padding: 0;
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.req {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary-bright);
+}
+
+.hint { margin: 0 0 0.75rem; font-size: 0.85rem; color: var(--text-muted); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.chipOff,
+.chipOn {
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.42rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: rgb(255 255 255 / 0.04);
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.chipOff:hover { color: var(--text); border-color: var(--border-strong); }
+
+.chipOn {
+  background: var(--primary-dim);
+  border-color: var(--primary);
+  color: var(--primary-bright);
+}
+
+.options { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.6rem; }
+
+.option,
+.optionOn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgb(255 255 255 / 0.03);
+  cursor: pointer;
+}
+
+.option:hover { border-color: var(--border-strong); }
+.optionOn { border-color: var(--primary); background: var(--primary-dim); }
+
+/* The radio is visually hidden, so the ring has to come from the label. */
+.option:focus-within,
+.optionOn:focus-within,
+.pill:focus-within,
+.pillOn:focus-within {
+  outline: 2px solid var(--primary-bright);
+  outline-offset: 2px;
+}
+
+.optionLabel { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+.optionHint { font-size: 0.75rem; color: var(--text-muted); }
+
+.inline { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.pill,
+.pillOn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgb(255 255 255 / 0.04);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.pillOn { border-color: var(--primary); background: var(--primary-dim); color: var(--primary-bright); }
+
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+
+.field { display: flex; flex-direction: column; gap: 0.4rem; }
+.field label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+
+.submit { display: flex; gap: 0.75rem; flex-wrap: wrap; padding-top: 0.5rem; }
+
+@media (max-width: 640px) {
+  .row { grid-template-columns: 1fr; }
+}

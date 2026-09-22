@@ -1,0 +1,167 @@
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.75rem;
+  align-items: start;
+}
+
+.monthBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.1rem;
+}
+
+.monthLabel { display: flex; align-items: center; gap: 0.75rem; }
+.monthLabel h2 { font-size: 1.15rem; }
+
+.weekdays,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+
+.weekdays {
+  margin-bottom: 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.pad { min-height: 82px; }
+
+.day {
+  min-height: 82px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  background: rgb(255 255 255 / 0.025);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.day:hover { background: var(--primary-dim); }
+
+.daySelected { background: var(--primary-dim); border-color: var(--primary); }
+.dayToday { border-color: var(--primary-border); }
+.dayToday .dayNum { color: var(--primary-bright); font-weight: 800; }
+.dayPast { opacity: 0.5; }
+
+.dayNum { font-size: 0.78rem; }
+
+.dots { display: flex; gap: 3px; flex-wrap: wrap; }
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.dayTitle {
+  font-size: 0.58rem;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  margin-top: auto;
+}
+
+.dayPanel { margin-top: 1.5rem; padding: 1.25rem; }
+.dayPanel h3 { font-size: 0.95rem; margin-bottom: 0.9rem; }
+
+.dayPanelList { list-style: none; margin: 0; padding: 0; }
+
+.dayPanelList li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.dayPanelList li:last-child { border-bottom: none; }
+
+.dayPanelTitle { font-size: 0.875rem; font-weight: 600; color: var(--text); }
+.dayPanelMeta { font-size: 0.75rem; color: var(--text-muted); }
+.dayPanelList :global(.btn) { margin-left: auto; font-size: 0.75rem; padding: 0.3rem 0.7rem; }
+
+.legend {
+  display: flex;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.legend li { display: flex; align-items: center; gap: 0.4rem; }
+
+.sidebar { position: sticky; top: 80px; }
+.sidebarCard { padding: 1.2rem; }
+
+.sidebarTitle {
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.count { font-size: 0.75rem; color: var(--text-faint); font-weight: 400; }
+.sidebarEmpty { color: var(--text-muted); font-size: 0.85rem; }
+
+.upcoming {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.upcomingItem {
+  border-left: 3px solid;
+  background: rgb(255 255 255 / 0.03);
+  border-radius: 0 10px 10px 0;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.upcomingName {
+  margin: 0 0 0.15rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.upcomingMeta { margin: 0; font-size: 0.72rem; font-weight: 600; }
+.upcomingDate { margin: 0.15rem 0 0.5rem; font-size: 0.7rem; color: var(--text-faint); }
+
+.upcomingActions { display: flex; gap: 0.4rem; }
+.upcomingActions :global(.btn) { font-size: 0.7rem; padding: 0.22rem 0.55rem; }
+
+@media (max-width: 960px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
+}
+
+@media (max-width: 560px) {
+  .day { min-height: 62px; }
+  .dayTitle { display: none; }
+}
