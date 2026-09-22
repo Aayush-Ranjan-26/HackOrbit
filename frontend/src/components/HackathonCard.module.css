@@ -1,0 +1,123 @@
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.18s, transform 0.18s, box-shadow 0.18s;
+}
+
+.card:hover {
+  border-color: var(--primary-border);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 34px rgb(124 92 252 / 0.12);
+}
+
+.card:focus-within {
+  border-color: var(--primary-border);
+}
+
+.band { height: 3px; }
+
+.body {
+  padding: 1.1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  flex: 1;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.source {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+}
+
+.deadline { font-size: 0.72rem; font-weight: 700; }
+
+.status {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--primary-bright);
+  background: var(--primary-dim);
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+}
+
+.title { font-size: 1.02rem; margin: 0; }
+
+.titleLink {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.titleLink:hover { color: var(--primary-bright); }
+
+
+.note {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  border-left: 2px solid var(--primary-border);
+  padding-left: 0.7rem;
+}
+
+.domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.domain {
+  font-size: 0.68rem;
+  color: var(--primary-bright);
+  background: var(--primary-dim);
+  border-radius: 4px;
+  padding: 0.14rem 0.45rem;
+}
+
+.domainMore { font-size: 0.68rem; color: var(--text-faint); align-self: center; }
+
+.facts {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.prize { color: var(--warning); font-weight: 700; }
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+
+.actions :global(.btn) {
+  font-size: 0.78rem;
+  padding: 0.45rem 0.8rem;
+}
+
+.details { margin-left: auto; }
+
+.remove { color: var(--danger); border-color: rgb(239 68 68 / 0.28); }
+.remove:hover:not(:disabled) { background: rgb(239 68 68 / 0.12); }

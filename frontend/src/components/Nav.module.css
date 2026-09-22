@@ -1,0 +1,130 @@
+.header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.inner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--text);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.link,
+.linkActive {
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.25rem 0;
+  border-bottom: 2px solid transparent;
+}
+
+.link { color: var(--text-muted); }
+.link:hover { color: var(--text); }
+
+.linkActive {
+  color: var(--primary-bright);
+  border-bottom-color: var(--primary);
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--border);
+}
+
+.email {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signOut {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0.25rem 0.65rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.signOut:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.signIn {
+  background: var(--primary-dim);
+  border: 1px solid var(--primary-border);
+  border-radius: 8px;
+  padding: 0.35rem 0.9rem;
+  color: var(--primary-bright);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.burger {
+  display: none;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .burger { display: block; }
+
+  .links {
+    display: none;
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 0.5rem 0 1rem;
+  }
+
+  .links.open { display: flex; }
+
+  .account {
+    padding-left: 0;
+    border-left: none;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .email { max-width: none; }
+}

@@ -1,0 +1,33 @@
+.region {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  max-width: min(340px, calc(100vw - 3rem));
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.5);
+  animation: slide-up 0.22s ease;
+}
+
+.success { background: #0d2e18; border: 1px solid #22c55e66; color: #86efac; }
+.error   { background: #2e0d0d; border: 1px solid #ef444466; color: #fca5a5; }
+.info    { background: #0d1a2e; border: 1px solid #3b82f666; color: #bfdbfe; }
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}
