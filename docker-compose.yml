@@ -1,0 +1,33 @@
+# Local/prod-like run against hosted Supabase — no database container here.
+#
+# Before running, create the real env files (git-ignored, never committed):
+#   cp backend/.env.example backend/.env         # fill in SUPABASE_* etc.
+#   cp frontend/.env.local.example frontend/.env.local
+#
+# Then: docker compose up --build
+
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - backend/.env
+
+  frontend:
+    build:
+      context: ./frontend
+      # NEXT_PUBLIC_* vars are inlined at build time, not read from env_file at
+      # runtime. Export them (or put them in a root .env) before `docker
+      # compose build` so these substitute; otherwise the build uses blanks.
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-http://localhost:8080}
+    ports:
+      - "3000:3000"
+    env_file:
+      - frontend/.env.local
+    depends_on:
+      - backend
