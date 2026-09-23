@@ -14,11 +14,28 @@ export class AppError extends Error {
  */
 export function errorHandler(err, req, res, _next) {
   const statusCode = err.statusCode || 500;
-  const code = err.code || 'INTERNAL_ERROR';
+  let code = err.code || 'INTERNAL_ERROR';
 
   // Deliberate AppErrors carry messages we wrote; anything else may be raw
   // Postgres/SDK text naming columns and constraints, so it is not echoed.
   const deliberate = err instanceof AppError;
+
+  /*
+   * express.json() rejects a malformed or oversized body before any route
+   * runs, and its own message was being echoed verbatim under the wrong code
+   * (`{bad` → 400 INTERNAL_ERROR, 200KB → 413 INTERNAL_ERROR). Restate both in
+   * our own vocabulary; the sub-500 branch below would otherwise pass third
+   * party text through.
+   */
+  if (!deliberate && err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request body too large', code: 'PAYLOAD_TOO_LARGE' });
+  }
+  if (!deliberate && (err.type === 'entity.parse.failed' || err instanceof SyntaxError)) {
+    return res.status(400).json({ error: 'Invalid JSON body', code: 'BAD_REQUEST' });
+  }
+
+  // A driver-specific code on an unexpected 500 is itself a hint about the stack.
+  if (statusCode >= 500 && !deliberate) code = 'INTERNAL_ERROR';
 
   if (statusCode >= 500 && !deliberate) {
     console.error(`[error] ${req.method} ${req.path}`, err);

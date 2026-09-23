@@ -50,6 +50,38 @@ test('unknown route returns 404 without echoing the requested path', async () =>
   assert.ok(!text.includes(path), 'response body must not reflect the requested path');
 });
 
+describe('body parser errors are restated in our own vocabulary', () => {
+  // express.json() rejects these before any route runs, and its own message
+  // used to be echoed verbatim under code INTERNAL_ERROR.
+  test('malformed JSON is 400 BAD_REQUEST, not INTERNAL_ERROR', async () => {
+    const res = await fetch(`${BASE}/user/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"display_name":',
+    });
+    const body = await res.json();
+    assert.equal(res.status, 400);
+    assert.equal(body.code, 'BAD_REQUEST');
+    assert.equal(body.error, 'Invalid JSON body');
+  });
+
+  test('an oversized body is 413 PAYLOAD_TOO_LARGE', async () => {
+    const res = await fetch(`${BASE}/user/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display_name: 'x'.repeat(200_000) }),
+    });
+    const body = await res.json();
+    assert.equal(res.status, 413);
+    assert.equal(body.code, 'PAYLOAD_TOO_LARGE');
+  });
+});
+
+test('the stack is not advertised', async () => {
+  const res = await fetch(`${BASE}/health`);
+  assert.equal(res.headers.get('x-powered-by'), null);
+});
+
 describe('authentication gate', () => {
   test('GET /user/profile with no Authorization header is 401', async () => {
     const res = await fetch(`${BASE}/user/profile`);

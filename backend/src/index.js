@@ -13,6 +13,9 @@ import { runScrapeJob } from './jobs/scraper.js';
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Free reconnaissance, and inconsistent with the headers set below.
+app.disable('x-powered-by');
+
 // Only trust X-Forwarded-For when a proxy really is in front. Trusting it
 // unconditionally lets any caller rotate the header to reset their own rate limit.
 app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
@@ -47,7 +50,18 @@ app.use((_req, res, next) => {
 });
 
 // ─── Rate limits ─────────────────────────────────────────────────────────────
-app.use(rateLimit({ windowMs: 60_000, limit: 120, standardHeaders: 'draft-7', legacyHeaders: false }));
+// A client that res.json()s every response needs this to be JSON too — the
+// default 429 is text/plain, so the retry message surfaced as a parse error.
+app.use(
+  rateLimit({
+    windowMs: 60_000,
+    limit: 120,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    handler: (_req, res) =>
+      res.status(429).json({ error: 'Too many requests, please try again later.', code: 'RATE_LIMITED' }),
+  })
+);
 
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));

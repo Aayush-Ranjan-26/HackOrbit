@@ -64,8 +64,12 @@ router.put('/profile', async (req, res, next) => {
       if (!Array.isArray(b.interests) || b.interests.some((i) => typeof i !== 'string')) {
         throw new AppError('interests must be an array of strings', 400, 'BAD_REQUEST');
       }
-      // Cap the list so a client cannot store unbounded text on the profile.
-      set.interests = [...new Set(b.interests.map((i) => i.trim()).filter(Boolean))].slice(0, 20);
+      // Cap the list AND each entry: capping only the length let a client store
+      // 20 x 5,000 characters, which then built an ~80 KB `domains=ov.{…}` query
+      // string and 500'd this user's own /user/recommendations on every call.
+      set.interests = [
+        ...new Set(b.interests.map((i) => i.trim().slice(0, 60)).filter(Boolean)),
+      ].slice(0, 20);
     }
     if (b.onboarding_complete !== undefined) {
       set.onboarding_complete = Boolean(b.onboarding_complete);
@@ -131,14 +135,9 @@ router.delete('/saved/:hackathon_id', async (req, res, next) => {
   try {
     const id = hackathonId(req);
 
-    // Calendar entries hang off the saved row conceptually; remove both.
-    const { error: calError } = await supabaseAdmin
-      .from('calendar_events')
-      .delete()
-      .eq('user_id', req.user.id)
-      .eq('hackathon_id', id);
-    if (calError) throw dbError(calError);
-
+    // Authorise before mutating. Deleting the calendar row first meant a
+    // hackathon that was calendared but not saved lost its calendar entry and
+    // *then* got a 404 saying nothing had happened.
     const { data, error } = await supabaseAdmin
       .from('saved_hackathons')
       .delete()
@@ -150,6 +149,14 @@ router.delete('/saved/:hackathon_id', async (req, res, next) => {
     // Same 404 whether the row never existed or belongs to someone else, so
     // this cannot be used to probe for other users' rows.
     if (!data?.length) throw new AppError('Not in your saved list', 404, 'NOT_FOUND');
+
+    // Calendar entries hang off the saved row conceptually; remove both.
+    const { error: calError } = await supabaseAdmin
+      .from('calendar_events')
+      .delete()
+      .eq('user_id', req.user.id)
+      .eq('hackathon_id', id);
+    if (calError) throw dbError(calError);
     res.json({ deleted: true });
   } catch (err) {
     next(err);
@@ -211,7 +218,7 @@ router.get('/recommendations', async (req, res, next) => {
     const profile = await getProfile(req.user.id);
     const interests = profile.interests || [];
     const format = profile.format_pref;
-    const limit = Math.min(parseInt(req.query.limit) || 5, 20);
+    const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 5));
 
     const build = (withInterests) => {
       let q = openHackathons();
