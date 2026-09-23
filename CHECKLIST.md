@@ -137,6 +137,110 @@
       empirically (anon and two real users), all 10 DB constraints, cascade
       deletes, no secret in git history or the browser bundle, no XSS sink
 
+## Phase 13 — Test, fix, debug pass (three parallel auditors + live API tests)
+
+Static audit of the backend, static audit of the frontend auth surface, and a
+black-box test of the running API with two real accounts. Tenant isolation was
+attacked from a second account on all 12 user-scoped queries (id in the body, in
+a query param, in a header, in a forged JWT `sub`) and **held on every path**;
+no error leakage, secret exposure or rate-limit bypass was found.
+
+Build blocker:
+- [x] `/onboarding` called `useSearchParams()` with no Suspense boundary, so
+      `npm run build` **failed outright**. `/explore` and `/login` already had
+      the wrapper
+
+Authentication:
+- [x] The implicit-flow fragment forward was dead code — `@supabase/ssr`
+      hardcodes `flowType: 'pkce'` after spreading options, so auth-js throws on
+      an implicit callback. Those users were silently signed out with no message.
+      Branch deleted, replaced with a real error
+- [x] `/auth/callback` ignored `?error=` / `?error_description=` entirely, so an
+      expired or reused link showed "Sign in first" and discarded the reason
+- [x] `next` was honoured even with no `code`, and it short-circuited the
+      new-user check — so a first-time Google user landed on `/explore` with an
+      empty profile and was never sent to onboarding. Order reversed
+- [x] `/auth/reset` gated on *any* session, so a signed-in user could deep-link
+      to it and change the password with no re-auth. Now gated on a marker cookie
+      set only for `type=recovery`, spent once the password is saved.
+      **Known ceiling:** the code exchange still mints a real session — the
+      recovery token *is* the session — so the email holder can reach the app
+      without resetting. Closing that needs a server-side reset endpoint
+- [x] Confirmation email could not be resent by the only people who need it: the
+      button lived on `/account`, which an unconfirmed user cannot reach. Added
+      to `/login`, shown when sign-in fails as unconfirmed
+- [x] `/calendar` flashed the month grid at signed-out visitors — it checked
+      `authLoading` after its mount gate, unlike the other four protected pages
+- [x] Deleting an account redirected to `/?deleted=1`, which the landing page
+      never read. Points at `/login?deleted=1`, which renders it
+- [x] Sign-in CTAs on the five protected pages carry `?next=`, so signing in
+      returns you where you were instead of dumping you on `/explore`
+- [x] Password minimum was 6 at sign-up but 8 on reset and change. 8 for any new
+      password; sign-in still accepts an existing 6-character one
+- [x] `setState` in an effect body on `/auth/reset` (the React 19 rule the rest
+      of the codebase documents avoiding) — derived instead
+
+Admin:
+- [x] `/api/admin` returned 503 "Admin is not configured" *before* checking the
+      caller, announcing the admin surface to an unauthenticated curl. Identity
+      check moved first; verified by request that it now 404s
+- [x] The proxy's `setAll` was a no-op, so a server-side token refresh rotated
+      the refresh token and threw the new one away — signing the admin out at
+      random. Cookies are written back
+
+Backend correctness (each verified live, before and after):
+- [x] `?page=99999` → **500**. PostgREST answers 416 past the end of the result
+      set; an empty page is the honest answer
+- [x] `?source=a"b` → **500**. postgrest-js quotes `(` and `)` inside `in.()`
+      but passes a bare `"` through — the one interpolated filter value with no
+      sanitisation
+- [x] `?limit=-5` on `/user/recommendations` → **500**: clamped at the top only
+- [x] `interests` capped the array length but not each string, so 20 x 5,000
+      characters persisted and then permanently 500'd that user's own
+      `/user/recommendations` with an ~80 KB query string
+- [x] `DELETE /user/saved/:id` deleted the calendar row *before* authorising,
+      returning 404 after a mutation had already happened
+- [x] A malformed body echoed express.json()'s own message under
+      `INTERNAL_ERROR`; 429 was `text/plain`, not the API's JSON error shape
+- [x] `Authorization: bearer` (lowercase) was a 401 — RFC 7235 makes the scheme
+      case-insensitive
+- [x] `X-Powered-By: Express` disabled
+
+Scraper data loss:
+- [x] MLH matched only `MON dd - dd`, silently dropping **every cross-month and
+      single-day event** (Halloween and New Year weekends) with nothing logged.
+      Extracted as `mlhEventDates()` and tested against all four shapes
+- [x] Bare date strings were parsed in the *server's* timezone, so the same page
+      stored a different instant on an IST host than a US one. Pinned to UTC —
+      note the first attempt used `includes('T')` to detect ISO, which "OCT 31,
+      2026" satisfies; the test caught it
+- [x] `parsePrizeAmount` missed plural "Lakhs"/"lacs" — the exact 100,000x
+      undercount it exists to prevent — and returned the first shorthand in list
+      order rather than the largest, reading "$1M + 100K" as 100,000
+- [x] The `scrape_logs` insert error was swallowed, so a failed insert left both
+      updates filtering on `id=eq.undefined` — a run with no log row and no
+      trace, while `scrape_logs` is the documented drift signal
+- [x] One bad page discarded every page already collected for Devpost and Unstop
+
+Deployment:
+- [x] CSP pinned `connect-src` to `http://localhost:8080`, so any deployed
+      `NEXT_PUBLIC_API_BASE` was blocked and surfaced as "Cannot reach the
+      server". Derived from the env var now
+
+- [x] Test suite 26 → 42; both apps lint clean, frontend builds, API verified by
+      request end to end. Cascade delete re-verified: removing the test users
+      left 0 rows across `profiles`, `saved_hackathons`, `calendar_events`
+
+### Reported and deliberately not changed
+- [-] Unknown filter *values* (`?sort=nonsense`, `?hackathon_type=zzz`) are
+      dropped rather than rejected, so they return everything while
+      `?source=zzz` returns 0. Inconsistent, but rejecting them is a breaking
+      API change for no user-visible gain
+- [-] Email change is still absent. It needs a confirmation round-trip, and the
+      built-in mailer is already over quota
+- [-] `/hackathon/[id]` serves the generic site title rather than per-hackathon
+      metadata. Real SEO gap for a discovery product, but nothing is broken
+
 ## Needs you
 
 - [x] Supabase project created and `schema.sql` run — confirmed against real
