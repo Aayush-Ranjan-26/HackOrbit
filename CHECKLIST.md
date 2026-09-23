@@ -149,12 +149,15 @@
       is disabled in the Supabase project, which is why Google sign-in failed —
       the code was never the problem. The button reappears on its own once the
       provider is enabled
-- [ ] **Decide how to reconcile GitHub.** The remote has 80 commits of an
-      unrelated history (a file-by-file upload) that still contains the AI
-      feature *and* the Next release with the unauthenticated RCE. A plain
-      push is rejected: either `push --force` to replace it with this history,
-      or merge with `--allow-unrelated-histories` and resolve ~31 files
-- [ ] Replace `OWNER/REPO` in the README CI badge with `Aayush-Ranjan-26/HackOrbit`
+- [x] GitHub reconciled — the remote's 80 commits of unrelated history (which
+      still carried the AI feature *and* the Next release with the
+      unauthenticated RCE) were replaced with this history, as 17 commits
+- [x] README CI badge points at `Aayush-Ranjan-26/HackOrbit`
+- [ ] **Supabase → Authentication → URL Configuration.** Site URL
+      `http://localhost:3000`, redirect URL `http://localhost:3000/auth/callback`.
+      Without it, confirmation and password-reset emails do not return to the app
+- [ ] **Custom SMTP.** The built-in mailer caps at ~2 emails/hour and was
+      exhausted during testing
 - [ ] **Two Supabase dashboard settings.** Password minimum is 6 with no
       complexity rule and no leaked-password check (Auth → Passwords), and
       signups are open (Auth → Settings). Neither is reachable from code
