@@ -61,19 +61,27 @@ export function parsePrizeAmount(raw) {
 
   const text = stripHTML(String(raw)).toLowerCase().replace(/,/g, '');
   const MULTIPLIERS = [
-    [/([\d.]+)\s*(?:cr|crore)s?\b/, 1e7],
-    [/([\d.]+)\s*(?:lakh|lac|l)\b/, 1e5],
+    // The plural matters: "10 Lakhs" without the `s?` fell through to the digit
+    // strip and read as 10 — the exact 100,000x undercount this function exists
+    // to prevent.
+    [/([\d.]+)\s*(?:crores?|crs?)\b/, 1e7],
+    [/([\d.]+)\s*(?:lakhs?|lacs?|l)\b/, 1e5],
     [/([\d.]+)\s*(?:k)\b/, 1e3],
-    [/([\d.]+)\s*(?:m|mn|million)\b/, 1e6],
+    [/([\d.]+)\s*(?:millions?|mil|mn|m)\b/, 1e6],
   ];
 
+  /*
+   * Take the largest figure, not the first in list order: returning on first
+   * match read "$1M + 100K in prizes" as 100,000, because `k` sat ahead of `m`.
+   */
+  let best = 0;
   for (const [re, factor] of MULTIPLIERS) {
     const m = text.match(re);
-    if (m) {
-      const n = parseFloat(m[1]);
-      if (!isNaN(n)) return Math.floor(n * factor);
-    }
+    if (!m) continue;
+    const n = parseFloat(m[1]);
+    if (!isNaN(n)) best = Math.max(best, Math.floor(n * factor));
   }
+  if (best > 0) return best;
 
   const digits = text.replace(/[^0-9.]/g, '');
   const num = parseFloat(digits);
@@ -99,9 +107,25 @@ export function mlhSeasons(now = new Date()) {
   return now.getMonth() >= 7 ? [String(y + 1), String(y + 2)] : [String(y), String(y + 1)];
 }
 
-function toISO(value) {
+const MONTHS = 'JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC';
+
+export function toISO(value) {
   if (!value) return null;
-  const d = new Date(value);
+  const raw = String(value).trim();
+
+  /*
+   * A bare date like "SEP 7, 2025" (MLH, Devpost) is parsed in the *server's*
+   * timezone, so the same page stored 2025-09-06T18:30Z on an IST host and a
+   * different instant on a US one — shifting days_until_deadline by a day and
+   * moving when the expiry sweep drops the row. Pin those to UTC. Strings that
+   * already carry a zone or a time (every ISO timestamp from Unstop, Devfolio
+   * and HackerEarth) pass through untouched.
+   */
+  // Testing for a literal 'T' to spot an ISO string does not work: "OCT 31,
+  // 2026" contains one. Match the ISO shape itself.
+  const hasZone = /(?:z|utc|gmt|[+-]\d{2}:?\d{2})$/i.test(raw);
+  const isoShaped = /^\d{4}-\d{2}-\d{2}T/.test(raw);
+  const d = new Date(hasZone ? raw : isoShaped ? `${raw}Z` : `${raw} UTC`);
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
@@ -147,9 +171,15 @@ async function scrapeDevpost() {
   const records = [];
 
   for (let page = 1; page <= 20; page++) {
-    const data = await fetchWithRetry(
-      `https://devpost.com/api/hackathons?page=${page}&status[]=open`
-    );
+    let data;
+    try {
+      data = await fetchWithRetry(`https://devpost.com/api/hackathons?page=${page}&status[]=open`);
+    } catch (err) {
+      // Keep what earlier pages produced instead of failing the whole source,
+      // the way the MLH adapter already isolates a single season.
+      console.warn(`[scraper:devpost] page ${page} failed (${err.message}) — keeping ${records.length} so far`);
+      break;
+    }
     const hackathons = data?.hackathons || [];
     if (!hackathons.length) break;
 
@@ -202,6 +232,36 @@ async function scrapeDevpost() {
   return records;
 }
 
+/**
+ * Reads the date out of an MLH event link's text.
+ *
+ * Three shapes appear: "SEP 13 - 14", "OCT 31 - NOV 02" and a single-day
+ * "JAN 24". Only the first was matched, so every cross-month and single-day
+ * event was dropped — Halloween and New Year weekends never reached the DB, and
+ * nothing logged the skip, so scrape_logs showed a healthy run with a quietly
+ * lower count.
+ *
+ * Returns null when there is no date to read.
+ */
+export function mlhEventDates(linkText, season) {
+  const match = String(linkText).match(
+    new RegExp(`(${MONTHS})\\s+(\\d{1,2})(?:\\s*[-\u2013]\\s*(?:(${MONTHS})\\s+)?(\\d{1,2}))?`, 'i')
+  );
+  if (!match) return null;
+
+  const [matched, month, startDay, endMonthRaw, endDayRaw] = match;
+  const endMonth = endMonthRaw || month;
+  const endDay = endDayRaw || startDay;
+
+  // DEC 30 - JAN 01 crosses the new year, and mlhEventYear already knows that
+  // January belongs to the season's own year while December does not.
+  return {
+    matched,
+    startISO: toISO(`${month} ${startDay}, ${mlhEventYear(month, season)}`),
+    endISO: toISO(`${endMonth} ${endDay}, ${mlhEventYear(endMonth, season)}`),
+  };
+}
+
 // ─── MLH ─────────────────────────────────────────────────────────────────────
 async function scrapeMLH() {
   const records = [];
@@ -228,19 +288,17 @@ async function scrapeMLH() {
       const linkText = linkEl.text().trim();
       if (!href || !linkText || href.includes('mlh.io/seasons')) return;
 
-      const dateMatch = linkText.match(
-        /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{1,2})\s*-\s*(\d{1,2})/i
-      );
-      if (!dateMatch) return;
-
-      const [, month, startDay, endDay] = dateMatch;
-      const year = mlhEventYear(month, season);
-      const endISO = toISO(`${month} ${endDay}, ${year}`);
+      const dates = mlhEventDates(linkText, season);
+      if (!dates) {
+        console.warn(`[scraper:mlh] no date in "${linkText.slice(0, 80)}" — skipping "${title}"`);
+        return;
+      }
+      const { startISO, endISO, matched } = dates;
       if (!isFuture(endISO)) return;
 
       seen.add(title);
       const isDigital = /digital|everywhere/i.test(linkText);
-      const afterDate = linkText.slice(linkText.indexOf(dateMatch[0]) + dateMatch[0].length);
+      const afterDate = linkText.slice(linkText.indexOf(matched) + matched.length);
       const locationMatch = afterDate.match(/([A-Z][a-z]+[^,]*,\s*[^,]+)/);
       const location = locationMatch
         ? locationMatch[1].replace(/(In-Person|Digital|DIVERSITY|HIGH SCHOOL)/gi, '').trim()
@@ -255,7 +313,7 @@ async function scrapeMLH() {
         hackathon_type: isDigital ? 'online' : 'offline',
         description: location || (isDigital ? 'Online / Worldwide' : null),
         registration_deadline: endISO,
-        start_date: toISO(`${month} ${startDay}, ${year}`),
+        start_date: startISO,
         end_date: endISO,
         domains: ['General', 'Software Development'],
         is_active: true,
@@ -363,9 +421,15 @@ async function scrapeUnstop() {
   const records = [];
 
   for (let page = 1; page <= 15; page++) {
-    const data = await fetchWithRetry(
-      `https://unstop.com/api/public/opportunity/search-new?opportunity=hackathons&per_page=50&page=${page}&oppstatus=open`
-    );
+    let data;
+    try {
+      data = await fetchWithRetry(
+        `https://unstop.com/api/public/opportunity/search-new?opportunity=hackathons&per_page=50&page=${page}&oppstatus=open`
+      );
+    } catch (err) {
+      console.warn(`[scraper:unstop] page ${page} failed (${err.message}) — keeping ${records.length} so far`);
+      break;
+    }
     const opportunities = data?.data?.data || [];
     if (!opportunities.length) break;
 
@@ -445,37 +509,38 @@ export async function runScrapeJob() {
 
   const results = await Promise.allSettled(
     SOURCES.map(async ({ name, fn }) => {
-      const { data: logRow } = await supabaseAdmin
+      const { data: logRow, error: logError } = await supabaseAdmin
         .from('scrape_logs')
         .insert({ source: name, status: 'running' })
         .select('id')
         .single();
 
+      // Without this, a failed insert left logRow undefined and the updates
+      // below filtered on `id=eq.undefined` — so the run left no log row and no
+      // trace, and scrape_logs is where a drifted adapter shows up first.
+      if (logError) console.error(`[scraper:${name}] could not open a scrape_logs row:`, logError.message);
+      const logId = logRow?.id ?? null;
+
+      const finish = async (fields) => {
+        if (!logId) return;
+        const { error } = await supabaseAdmin
+          .from('scrape_logs')
+          .update({ finished_at: new Date().toISOString(), ...fields })
+          .eq('id', logId);
+        if (error) console.error(`[scraper:${name}] could not close its scrape_logs row:`, error.message);
+      };
+
       try {
         const records = await fn();
         const count = await upsertHackathons(records);
 
-        await supabaseAdmin
-          .from('scrape_logs')
-          .update({
-            status: 'success',
-            finished_at: new Date().toISOString(),
-            records_upserted: count,
-          })
-          .eq('id', logRow?.id);
+        await finish({ status: 'success', records_upserted: count });
 
         console.log(`[scraper:${name}] upserted ${count}`);
         return { name, count };
       } catch (err) {
         console.error(`[scraper:${name}] failed:`, err.message);
-        await supabaseAdmin
-          .from('scrape_logs')
-          .update({
-            status: 'error',
-            finished_at: new Date().toISOString(),
-            error_message: err.message.slice(0, 500),
-          })
-          .eq('id', logRow?.id);
+        await finish({ status: 'error', error_message: err.message.slice(0, 500) });
         throw err;
       }
     })
