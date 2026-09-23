@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { supabaseAdmin } from '../lib/supabase.js';
-import { getProfile } from '../lib/profile.js';
+import { buildProfileUpdate, getProfile } from '../lib/profile.js';
 import { assertHackathonId, openHackathons, sanitizeDomains } from '../lib/hackathons.js';
 import { AppError, dbError } from '../middleware/errorHandler.js';
 
@@ -28,52 +28,10 @@ router.get('/profile', async (req, res, next) => {
   }
 });
 
-const YEARS = ['1st', '2nd', '3rd', '4th', '5th', 'Working Professional'];
-const EXPERIENCE = ['beginner', 'intermediate', 'advanced'];
-const FORMATS = ['online', 'offline', 'both'];
-const TEAMS = ['solo', 'team', 'either'];
 
 router.put('/profile', async (req, res, next) => {
   try {
-    const b = req.body || {};
-    const set = {};
-
-    const str = (key, max = 120) => {
-      if (b[key] === undefined) return;
-      if (b[key] === null || b[key] === '') return void (set[key] = null);
-      if (typeof b[key] !== 'string') throw new AppError(`${key} must be a string`, 400, 'BAD_REQUEST');
-      set[key] = b[key].trim().slice(0, max);
-    };
-    const oneOf = (key, allowed) => {
-      if (b[key] === undefined) return;
-      if (!allowed.includes(b[key])) {
-        throw new AppError(`${key} must be one of: ${allowed.join(', ')}`, 400, 'BAD_REQUEST');
-      }
-      set[key] = b[key];
-    };
-
-    str('display_name');
-    str('college');
-    str('avatar_url', 500);
-    oneOf('year_of_study', YEARS);
-    oneOf('experience', EXPERIENCE);
-    oneOf('format_pref', FORMATS);
-    oneOf('team_pref', TEAMS);
-
-    if (b.interests !== undefined) {
-      if (!Array.isArray(b.interests) || b.interests.some((i) => typeof i !== 'string')) {
-        throw new AppError('interests must be an array of strings', 400, 'BAD_REQUEST');
-      }
-      // Cap the list AND each entry: capping only the length let a client store
-      // 20 x 5,000 characters, which then built an ~80 KB `domains=ov.{…}` query
-      // string and 500'd this user's own /user/recommendations on every call.
-      set.interests = [
-        ...new Set(b.interests.map((i) => i.trim().slice(0, 60)).filter(Boolean)),
-      ].slice(0, 20);
-    }
-    if (b.onboarding_complete !== undefined) {
-      set.onboarding_complete = Boolean(b.onboarding_complete);
-    }
+    const set = buildProfileUpdate(req.body);
 
     const { data, error } = await supabaseAdmin
       .from('profiles')
