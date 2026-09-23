@@ -176,7 +176,13 @@ export default function AccountPage() {
           <button
             className={`btn ${styles.deleteBtn}`}
             onClick={removeAccount}
-            disabled={busy === 'delete' || confirmEmail.trim() !== user.email}
+            // Case-insensitive: Supabase does not lowercase stored emails, and autofill
+            // or a phone keyboard will happily capitalise. A mismatch can only block
+            // the delete, never permit one — the server scopes it to the caller's token.
+            disabled={
+              busy === 'delete' ||
+              confirmEmail.trim().toLowerCase() !== (user.email ?? '').toLowerCase()
+            }
           >
             {busy === 'delete' ? 'Deleting…' : 'Delete my account'}
           </button>
