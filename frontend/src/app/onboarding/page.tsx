@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/lib/hooks';
 import { fetchProfile, updateProfile, type Profile } from '@/lib/api';
@@ -34,6 +34,10 @@ const TEAMS = [
  */
 export default function OnboardingPage() {
   const router = useRouter();
+  // Set only when the auth callback sent us here without being able to check
+  // the profile itself. A direct visit has no flag and always shows the form,
+  // so editing your interests still works.
+  const isFirstRun = useSearchParams().get('new') === '1';
   const { user, loading: authLoading } = useUser();
   const { showToast, toastElement } = useToast();
 
@@ -44,10 +48,13 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (!user) return;
     fetchProfile()
-      .then((p) => setForm({ ...p, interests: p.interests ?? [] }))
+      .then((p) => {
+        if (isFirstRun && p.interests?.length) return router.replace('/explore');
+        setForm({ ...p, interests: p.interests ?? [] });
+      })
       .catch(() => showToast('Could not load your profile', 'error'))
       .finally(() => setLoading(false));
-  }, [user, showToast]);
+  }, [user, showToast, isFirstRun, router]);
 
   const set = <K extends keyof Profile>(key: K, value: Profile[K]) =>
     setForm((f) => ({ ...f, [key]: value }));

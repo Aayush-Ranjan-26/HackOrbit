@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
+import { sameSitePath } from '@/lib/url';
 
 /**
  * Every link Supabase emails — confirm signup, password recovery — and every
@@ -17,9 +18,8 @@ export async function GET(request: Request) {
   const code = url.searchParams.get('code');
   const type = url.searchParams.get('type');
 
-  // Only same-site paths: this value ends up in a redirect.
-  const requested = url.searchParams.get('next');
-  const next = requested && /^\/(?!\/)/.test(requested) ? requested : null;
+  // This value ends up in a Location header, so it must be resolved, not matched.
+  const next = sameSitePath(url.searchParams.get('next'), url.origin);
 
   const fail = (reason: string) =>
     NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(reason)}`, url.origin));
@@ -36,7 +36,11 @@ export async function GET(request: Request) {
    * would send a user with a perfectly good link to an error screen.
    */
   if (!code) {
-    const target = type === 'recovery' ? '/auth/reset' : next || '/explore';
+    // No session server-side here, so the interests check below is impossible.
+    // /onboarding?new=1 bounces straight to /explore once the client has a
+    // session and finds interests already set, so returning users are not
+    // trapped in a form they have already filled in.
+    const target = type === 'recovery' ? '/auth/reset' : next || '/onboarding?new=1';
     return NextResponse.redirect(new URL(target, url.origin));
   }
 
@@ -46,6 +50,9 @@ export async function GET(request: Request) {
 
   const cookieStore = await cookies();
   const supabase = createServerClient(supabaseUrl, anonKey, {
+    // Matches the browser client. Without Secure, the ~400-day refresh token
+    // travels over any plaintext request to the same host in production.
+    cookieOptions: { secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' },
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (toSet) => toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),

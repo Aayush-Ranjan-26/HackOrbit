@@ -3,6 +3,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { sameSitePath } from '@/lib/url';
 import styles from './login.module.css';
 
 function LoginForm() {
@@ -25,8 +26,14 @@ function LoginForm() {
   // Only same-site absolute paths. A bare value would let ?next=https://evil/
   // (or the protocol-relative //evil) hard-navigate off-site straight after a
   // real sign-in — a phishing launchpad on a trusted origin.
+  // router.replace() hard-navigates to a foreign origin, so this is resolved
+  // against our own origin rather than pattern-matched — a prefix test is
+  // defeated by `/\evil.example` and by tab/newline, which the URL parser
+  // normalises into a protocol-relative URL.
   const requested = params.get('next');
-  const next = requested && /^\/(?!\/)/.test(requested) ? requested : '/explore';
+  const next =
+    (typeof window === 'undefined' ? null : sameSitePath(requested, window.location.origin)) ??
+    '/explore';
 
   useEffect(() => {
     if (!supabase) return;
@@ -95,15 +102,15 @@ function LoginForm() {
     });
     setLoading(false);
 
-    // Deliberately the same message either way — confirming which addresses
-    // have accounts would turn this form into an account-enumeration oracle.
-    if (error && !/rate|limit/i.test(error.message)) {
-      setMessage('If that address has an account, a reset link is on its way.');
-    } else if (error) {
-      setError('Too many attempts. Wait a minute and try again.');
-    } else {
-      setMessage('If that address has an account, a reset link is on its way.');
-    }
+    /*
+     * One message, always — including on rate-limit errors. Supabase only
+     * attempts a send for addresses that exist, so it returns success for an
+     * unknown address while a real one can hit the quota. Reporting that
+     * difference turned this form into the exact enumeration oracle it was
+     * written to avoid.
+     */
+    if (error) console.error('Password reset request failed:', error.message);
+    setMessage('If that address has an account, a reset link is on its way.');
   };
 
   const google = async () => {
