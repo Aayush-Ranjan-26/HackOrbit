@@ -24,7 +24,21 @@ export async function GET(request: Request) {
   const fail = (reason: string) =>
     NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(reason)}`, url.origin));
 
-  if (!code) return fail('That link is missing its code. Request a new one.');
+  /*
+   * Two shapes arrive here. PKCE links carry ?code= in the query, which the
+   * server can read and exchange. Implicit links carry the tokens in the URL
+   * fragment (#access_token=...), and a fragment is NEVER sent to the server —
+   * so there is nothing to exchange and nothing to detect.
+   *
+   * Browsers preserve a fragment across a redirect whose Location has none, so
+   * forwarding to the destination page lets the browser-side Supabase client
+   * pick the tokens up itself via detectSessionInUrl. Failing here instead
+   * would send a user with a perfectly good link to an error screen.
+   */
+  if (!code) {
+    const target = type === 'recovery' ? '/auth/reset' : next || '/explore';
+    return NextResponse.redirect(new URL(target, url.origin));
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -40,8 +54,12 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
-    // Expired, already used, or opened in a different browser than it started in.
-    return fail('That link has expired or was already used. Request a new one.');
+    // Also fires when the link is opened in a different browser from the one
+    // that requested it: the PKCE verifier lives in that first browser's cookie.
+    return fail(
+      'That link did not work. It may have expired, been used already, or been ' +
+        'opened in a different browser than the one you requested it from.'
+    );
   }
 
   // A recovery link must land on the page that sets a new password, never on
