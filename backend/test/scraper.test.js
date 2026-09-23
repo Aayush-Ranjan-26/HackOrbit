@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 process.env.SUPABASE_URL = 'http://127.0.0.1:1';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy-service-role-key';
 
-const { parsePrizeAmount, mlhEventYear, mlhSeasons, stripHTML, isGenericSkill } = await import('../src/jobs/scraper.js');
+const { parsePrizeAmount, mlhEventYear, mlhSeasons, mlhEventDates, toISO, stripHTML, isGenericSkill } =
+  await import('../src/jobs/scraper.js');
 
 describe('parsePrizeAmount', () => {
   test('plain dollar amount with thousands separators', () => {
@@ -108,5 +109,83 @@ describe('isGenericSkill', () => {
     ]) {
       assert.equal(isGenericSkill(s), false, `expected "${s}" to be kept`);
     }
+  });
+});
+
+// Each case below is a bug that was actually present.
+describe('parsePrizeAmount shorthand that used to be missed', () => {
+  test('plural lakh/lac — the 100,000x undercount', () => {
+    assert.equal(parsePrizeAmount('10 Lakhs'), 1_000_000);
+    assert.equal(parsePrizeAmount('₹1.5 Lakhs'), 150_000);
+    assert.equal(parsePrizeAmount('5 lacs'), 500_000);
+  });
+
+  test('plural crore still works', () => {
+    assert.equal(parsePrizeAmount('2 Crores'), 20_000_000);
+  });
+
+  test('the largest figure wins, not the first one in list order', () => {
+    // `k` sat ahead of `m` in the multiplier list, so this read as 100,000.
+    assert.equal(parsePrizeAmount('$1M + 100K in prizes'), 1_000_000);
+  });
+
+  test('"mil" is recognised', () => {
+    assert.equal(parsePrizeAmount('1.5 mil'), 1_500_000);
+  });
+});
+
+describe('toISO', () => {
+  test('a bare date is pinned to UTC, not the server timezone', () => {
+    // Parsed locally this became 2025-09-06T18:30Z on an IST host.
+    assert.equal(toISO('SEP 7, 2025'), '2025-09-07T00:00:00.000Z');
+  });
+
+  test('a timestamp that already carries a zone is untouched', () => {
+    assert.equal(toISO('2026-03-01T10:00:00Z'), '2026-03-01T10:00:00.000Z');
+    assert.equal(toISO('2026-03-01T10:00:00+05:30'), '2026-03-01T04:30:00.000Z');
+  });
+
+  test('unparseable input is null rather than an invalid date', () => {
+    assert.equal(toISO('not a date'), null);
+    assert.equal(toISO(null), null);
+  });
+});
+
+describe('mlhEventDates', () => {
+  test('same-month range', () => {
+    const d = mlhEventDates('HackMIT SEP 13 - 14 Cambridge, MA', '2027');
+    assert.equal(d.startISO, '2026-09-13T00:00:00.000Z');
+    assert.equal(d.endISO, '2026-09-14T00:00:00.000Z');
+  });
+
+  test('cross-month range is no longer dropped', () => {
+    const d = mlhEventDates('HackNY OCT 31 - NOV 02 New York, NY', '2027');
+    assert.equal(d.startISO, '2026-10-31T00:00:00.000Z');
+    assert.equal(d.endISO, '2026-11-02T00:00:00.000Z');
+  });
+
+  test('single-day event is no longer dropped', () => {
+    const d = mlhEventDates('OneDay JAN 24 Boston, MA', '2027');
+    assert.equal(d.startISO, '2027-01-24T00:00:00.000Z');
+    assert.equal(d.endISO, '2027-01-24T00:00:00.000Z');
+  });
+
+  test('a range crossing the new year lands in the right two years', () => {
+    const d = mlhEventDates('NYE Hack DEC 30 - JAN 01 Austin, TX', '2027');
+    assert.equal(d.startISO, '2026-12-30T00:00:00.000Z');
+    assert.equal(d.endISO, '2027-01-01T00:00:00.000Z');
+  });
+
+  test('no date in the text returns null', () => {
+    assert.equal(mlhEventDates('Coming soon — dates TBA', '2027'), null);
+  });
+});
+
+describe('toISO on a zone-less ISO timestamp', () => {
+  test('is read as UTC rather than the server timezone', () => {
+    // "OCT 31, 2026" contains a literal T, so an includes('T') check for "is
+    // this ISO" silently sent every October date down the local-parse path.
+    assert.equal(toISO('2026-03-01T10:00:00'), '2026-03-01T10:00:00.000Z');
+    assert.equal(toISO('OCT 31, 2026'), '2026-10-31T00:00:00.000Z');
   });
 });
