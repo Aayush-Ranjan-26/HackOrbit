@@ -23,7 +23,7 @@ anyway.
 
 **Status: complete and running.** 17 commits on
 `https://github.com/Aayush-Ranjan-26/HackOrbit` (`master`), CI green, 328 live
-hackathons in the database, 0 dependency advisories, 26/26 backend tests
+hackathons in the database, 0 dependency advisories, 42/42 backend tests
 passing, both apps lint and build clean.
 
 ---
@@ -39,7 +39,7 @@ passing, both apps lint and build clean.
 | Database | Supabase Postgres — 5 tables, RLS on all of them |
 | Live data | **328 open hackathons** (Unstop 186, MLH 79, Devpost 34, Devfolio 20, HackerEarth 6) |
 | API | 17 routes across 3 routers |
-| Tests | 26, on the built-in `node:test` runner — no test framework dependency |
+| Tests | 42, on the built-in `node:test` runner — no test framework dependency |
 | CI | GitHub Actions: backend lint + test, frontend lint + build |
 | Containers | Multi-stage Dockerfiles (non-root, healthcheck) + `docker-compose.yml` — **written, never built** (section 6) |
 | Local | `http://localhost:3000` (frontend), `http://localhost:8080` (API) |
@@ -94,12 +94,17 @@ same way.
 1. `@supabase/supabase-js` in the browser owns the session (email + password,
    Google OAuth when enabled, password recovery).
 2. Emailed and OAuth links land on **`/auth/callback`**, which exchanges the
-   one-time `?code=` for a session (PKCE). Links that carry tokens in the URL
-   *fragment* (implicit flow) can't be read server-side, so the route forwards
-   them and the browser client picks them up — the fragment survives the
-   redirect.
-3. Recovery links are routed to `/auth/reset`, never into the app, so the user
-   can't be silently signed in without changing the password.
+   one-time `?code=` for a session (PKCE). A link carrying tokens in the URL
+   *fragment* (implicit flow) cannot work: `@supabase/ssr` hardcodes
+   `flowType: 'pkce'`, so auth-js rejects an implicit callback outright. The
+   route used to forward those links on the theory that the browser client
+   would pick them up; it never did, and the user landed signed-out with no
+   explanation. It now reports the failure. `?error=` from an expired or reused
+   link is read and shown too.
+3. Recovery links are routed to `/auth/reset`, which gates on a marker cookie
+   rather than on merely having a session. Note the ceiling: the code exchange
+   necessarily creates a real session, so whoever holds the email can reach the
+   app without changing the password (see `context.md` §4).
 4. The frontend attaches the access token as a bearer header on every API call.
 5. `backend/src/middleware/auth.js` validates it with
    `supabaseAdmin.auth.getUser(token)` — a real server-side check, not a local

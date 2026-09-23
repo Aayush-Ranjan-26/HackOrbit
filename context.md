@@ -182,9 +182,17 @@ through the admin API — would otherwise 404 forever on every personalised rout
 
 ### Deliberately not built
 
-No password reset flow, no email change, no MFA, no roles beyond
-"authenticated" and the separate admin shared-secret. Supabase supports all of
-these; none is wired up. Admin is guarded by `ADMIN_SECRET_KEY`, compared in
+No email change, no MFA, no roles beyond "authenticated" and the separate
+admin shared-secret. Supabase supports all of these; none is wired up.
+
+Password reset *is* built — `/login` requests the link and `/auth/reset`
+completes it. One caveat worth knowing before changing it: exchanging a recovery
+code mints a full session, because Supabase's recovery token *is* the session
+and `updateUser()` needs it. Whoever holds the reset email can therefore reach
+the app without setting a new password. `/auth/reset` gates on a short-lived
+marker cookie set by `/auth/callback`, so a plain session is not enough to reach
+the form, but closing the underlying gap needs a server-side reset endpoint
+using the service-role key. Admin is guarded by `ADMIN_SECRET_KEY`, compared in
 constant time and never exposed to the browser — the frontend reaches it only
 through the server-side `/api/admin` proxy.
 
@@ -344,7 +352,7 @@ signup. Both are dashboard settings.
 
 ## 10. Testing
 
-`cd backend && npm test` — 26 tests across 6 suites, no framework: prize
+`cd backend && npm test` — 42 tests, no framework: prize
 shorthand parsing (K/Lakh/Cr/million/HTML span form), the MLH season/year
 offset, `stripHTML`, and a handful of route-level checks (health, a 404 that
 doesn't echo the request path, the auth gate on `/user/profile` and
