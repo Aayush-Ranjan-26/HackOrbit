@@ -53,7 +53,13 @@ router.get('/', async (req, res, next) => {
       query = query.eq('hackathon_type', hackathon_type);
     }
     if (prize_min !== undefined) query = query.gte('prize_value_inr', parseInt(prize_min) || 0);
-    if (source) query = query.in('source', String(source).split(',').map((s) => s.trim()));
+    // postgrest-js quotes ( and ) inside in.() but passes a bare " straight
+    // through, so ?source=a"b reached Postgres as a parse error and 500'd.
+    // Same metacharacter strip the domain filter already uses.
+    if (source) {
+      const sources = sanitizeDomains(String(source).split(','));
+      if (sources.length) query = query.in('source', sources);
+    }
     if (deadline_from && !isNaN(Date.parse(deadline_from))) {
       query = query.gte('registration_deadline', new Date(deadline_from).toISOString());
     }
@@ -65,7 +71,15 @@ router.get('/', async (req, res, next) => {
     query = query.order(order.column, { ascending: order.ascending });
 
     const { data, error, count } = await query.range(from, to);
-    if (error) throw dbError(error);
+    if (error) {
+      // PostgREST answers 416 Range Not Satisfiable for an offset past the end
+      // of the result set. That is an empty page, not a server fault.
+      if (error.code === 'PGRST103') {
+        const { count: total } = await openHackathons('*', { count: 'exact', head: true });
+        return res.json({ data: [], total: total || 0, page, limit });
+      }
+      throw dbError(error);
+    }
 
     res.json({ data: withDaysUntilDeadline(data || []), total: count || 0, page, limit });
   } catch (err) {

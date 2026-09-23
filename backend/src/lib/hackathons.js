@@ -16,7 +16,10 @@ export function assertHackathonId(id) {
  */
 export function sanitizeDomains(values) {
   return values
-    .map((v) => String(v).replace(/[{}",\\]/g, ' ').replace(/\s+/g, ' ').trim())
+    // Each value is capped as well as the list: these are interpolated into an
+    // `ov.{…}` query string, and 20 unbounded entries made the request line
+    // itself too long for PostgREST to accept.
+    .map((v) => String(v).replace(/[{}",\\]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60))
     .filter(Boolean)
     .slice(0, 20);
 }

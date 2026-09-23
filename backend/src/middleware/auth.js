@@ -6,7 +6,8 @@ import { supabaseAdmin } from '../lib/supabase.js';
  */
 async function resolveUser(req) {
   const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : null;
+  // The scheme is case-insensitive per RFC 7235; `bearer <jwt>` was a 401.
+  const token = /^bearer /i.test(header) ? header.slice(7).trim() : null;
   if (!token) return null;
 
   const { data, error } = await supabaseAdmin.auth.getUser(token);
