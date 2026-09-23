@@ -67,7 +67,7 @@ export default function AccountPage() {
     try {
       await deleteAccount();
       await signOut();
-      router.replace('/?deleted=1');
+      router.replace('/login?deleted=1');
     } catch {
       showToast('Could not delete the account. Try again.', 'error');
       setBusy(null);
@@ -88,7 +88,7 @@ export default function AccountPage() {
         <div className="container-narrow emptyState">
           <h1 className="pageTitle">Your account</h1>
           <p>Sign in to manage your account.</p>
-          <Link href="/login" className="btn btnPrimary">Sign in</Link>
+          <Link href="/login?next=/account" className="btn btnPrimary">Sign in</Link>
         </div>
       </div>
     );

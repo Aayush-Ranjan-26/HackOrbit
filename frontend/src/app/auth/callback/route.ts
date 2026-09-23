@@ -25,23 +25,27 @@ export async function GET(request: Request) {
     NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(reason)}`, url.origin));
 
   /*
-   * Two shapes arrive here. PKCE links carry ?code= in the query, which the
-   * server can read and exchange. Implicit links carry the tokens in the URL
-   * fragment (#access_token=...), and a fragment is NEVER sent to the server —
-   * so there is nothing to exchange and nothing to detect.
-   *
-   * Browsers preserve a fragment across a redirect whose Location has none, so
-   * forwarding to the destination page lets the browser-side Supabase client
-   * pick the tokens up itself via detectSessionInUrl. Failing here instead
-   * would send a user with a perfectly good link to an error screen.
+   * Supabase reports a dead link as ?error=access_denied&error_code=otp_expired
+   * with no ?code= at all. Reading only `code` sent those users to /onboarding
+   * with a bare "Sign in first" and threw the reason away.
+   */
+  const error = url.searchParams.get('error_description') || url.searchParams.get('error');
+  if (error) return fail(error);
+
+  /*
+   * No code and no error means the tokens were in the URL *fragment* (an
+   * implicit-flow link), and a fragment is never sent to the server. This used
+   * to forward to the destination page so the browser client could pick them
+   * up — but @supabase/ssr's createBrowserClient hardcodes `flowType: 'pkce'`
+   * after spreading caller options, and auth-js throws "Not a valid PKCE flow
+   * url." on an implicit callback, so nothing ever consumed them. The user
+   * landed signed-out with no explanation. Say so instead.
    */
   if (!code) {
-    // No session server-side here, so the interests check below is impossible.
-    // /onboarding?new=1 bounces straight to /explore once the client has a
-    // session and finds interests already set, so returning users are not
-    // trapped in a form they have already filled in.
-    const target = type === 'recovery' ? '/auth/reset' : next || '/onboarding?new=1';
-    return NextResponse.redirect(new URL(target, url.origin));
+    return fail(
+      'That sign-in link could not be read. Request a new one — links must be ' +
+        'opened in the browser that asked for them.'
+    );
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -59,8 +63,8 @@ export async function GET(request: Request) {
     },
   });
 
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) {
+  const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+  if (exchangeError) {
     // Also fires when the link is opened in a different browser from the one
     // that requested it: the PKCE verifier lives in that first browser's cookie.
     return fail(
@@ -70,14 +74,30 @@ export async function GET(request: Request) {
   }
 
   // A recovery link must land on the page that sets a new password, never on
-  // the app — otherwise the user is silently signed in and never changes it.
+  // the app. The marker is what /auth/reset gates on: a plain session is not
+  // proof of recovery, since every signed-in user has one.
+  //
+  // ponytail: the exchange above unavoidably mints a real session — Supabase's
+  // recovery token *is* the session, and updateUser() needs it — so whoever
+  // holds the email can reach the app without changing the password. Closing
+  // that needs a server-side reset endpoint using the service-role key.
   if (type === 'recovery') {
-    return NextResponse.redirect(new URL('/auth/reset', url.origin));
+    const response = NextResponse.redirect(new URL('/auth/reset', url.origin));
+    response.cookies.set('hackorbit-recovery', '1', {
+      httpOnly: false, // the reset page is a client component and reads it
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 900,
+    });
+    return response;
   }
 
-  if (next) return NextResponse.redirect(new URL(next, url.origin));
-
-  // A profile with no interests has not been through onboarding yet.
+  /*
+   * The brand-new-user check has to come before `next`, or it never runs: the
+   * OAuth button always sets `next`, so a first-time Google user went straight
+   * to /explore with an empty profile and nothing ever sent them to onboarding.
+   */
   const userId = data.user?.id;
   if (userId) {
     const { data: profile } = await supabase
@@ -90,6 +110,8 @@ export async function GET(request: Request) {
       return NextResponse.redirect(new URL('/onboarding', url.origin));
     }
   }
+
+  if (next) return NextResponse.redirect(new URL(next, url.origin));
 
   return NextResponse.redirect(new URL('/explore', url.origin));
 }

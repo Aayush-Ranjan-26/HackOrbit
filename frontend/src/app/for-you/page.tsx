@@ -71,7 +71,7 @@ export default function ForYouPage() {
           <div className="emptyIcon" aria-hidden="true">◎</div>
           <h1 className="pageTitle">Matched to you</h1>
           <p>Sign in and tell us what you build to get hackathons matched to your interests.</p>
-          <Link href="/login" className="btn btnPrimary">Sign in</Link>
+          <Link href="/login?next=/for-you" className="btn btnPrimary">Sign in</Link>
         </div>
       </div>
     );

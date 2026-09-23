@@ -51,7 +51,7 @@ export default function SavedPage() {
           <div className="emptyIcon" aria-hidden="true">🔖</div>
           <h1 className="pageTitle">Your saved hackathons</h1>
           <p>Sign in to save hackathons and track them from applied to submitted.</p>
-          <Link href="/login" className="btn btnPrimary">Sign in</Link>
+          <Link href="/login?next=/saved" className="btn btnPrimary">Sign in</Link>
         </div>
       </div>
     );
