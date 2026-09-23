@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@/lib/hooks';
@@ -32,7 +32,7 @@ const TEAMS = [
  * Without this page the profiles table stays empty, so the recommender has
  * nothing to match on.
  */
-export default function OnboardingPage() {
+function OnboardingForm() {
   const router = useRouter();
   // Set only when the auth callback sent us here without being able to check
   // the profile itself. A direct visit has no flag and always shows the form,
@@ -113,7 +113,7 @@ export default function OnboardingPage() {
         <div className="container-narrow emptyState">
           <h1 className="pageTitle">Set up your profile</h1>
           <p>Sign in first — your profile is what the recommendations are built from.</p>
-          <Link href="/login" className="btn btnPrimary">Sign in</Link>
+          <Link href="/login?next=/onboarding" className="btn btnPrimary">Sign in</Link>
         </div>
       </div>
     );
@@ -257,5 +257,15 @@ export default function OnboardingPage() {
       </div>
       {toastElement}
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  // useSearchParams needs a Suspense boundary or the production build fails
+  // while prerendering this route.
+  return (
+    <Suspense fallback={<div className="page"><div className="container">Loading…</div></div>}>
+      <OnboardingForm />
+    </Suspense>
   );
 }
