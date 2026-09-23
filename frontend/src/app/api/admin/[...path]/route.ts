@@ -34,9 +34,13 @@ async function callerIsAdmin(): Promise<boolean> {
 
   const cookieStore = await cookies();
   const supabase = createServerClient(url, anonKey, {
+    cookieOptions: { secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' },
     cookies: {
       getAll: () => cookieStore.getAll(),
-      setAll: () => {}, // read-only: this route never refreshes the session
+      // getUser() below refreshes an expired token, which ROTATES the refresh
+      // token. Discarding the new one invalidated the admin's session, so they
+      // appeared randomly signed out. Write it back.
+      setAll: (toSet) => toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
     },
   });
 
@@ -46,10 +50,14 @@ async function callerIsAdmin(): Promise<boolean> {
 }
 
 async function proxy(request: Request, params: Promise<{ path: string[] }>) {
+  // Identity first. A 503 ahead of this check told an unauthenticated caller
+  // that an admin surface exists here, which is exactly what the flat 404 is
+  // for. An admin still needs to know when the key is missing, so the 503 is
+  // kept — just behind the gate.
+  if (!(await callerIsAdmin())) return notFound();
   if (!process.env.ADMIN_SECRET_KEY) {
     return Response.json({ error: 'Admin is not configured' }, { status: 503 });
   }
-  if (!(await callerIsAdmin())) return notFound();
 
   const { path } = await params;
   const segment = path.join('/');
