@@ -78,7 +78,10 @@ export default function CalendarPage() {
   }, [events, today]);
 
   // Server render and first client render both land here, so they match.
-  if (!today || !view) {
+  // authLoading joins the same gate: checking it only further down flashed the
+  // month grid at signed-out visitors for one tick, unlike every other
+  // protected page.
+  if (!today || !view || authLoading) {
     return (
       <div className="page">
         <div className="container">
@@ -113,14 +116,14 @@ export default function CalendarPage() {
     }
   };
 
-  if (!authLoading && !user) {
+  if (!user) {
     return (
       <div className="page">
         <div className="container-narrow emptyState">
           <div className="emptyIcon" aria-hidden="true">📅</div>
           <h1 className="pageTitle">Your deadline calendar</h1>
           <p>Sign in to track registration and submission deadlines in one place.</p>
-          <Link href="/login" className="btn btnPrimary">Sign in</Link>
+          <Link href="/login?next=/calendar" className="btn btnPrimary">Sign in</Link>
         </div>
       </div>
     );

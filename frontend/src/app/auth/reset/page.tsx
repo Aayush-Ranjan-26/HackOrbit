@@ -5,14 +5,24 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import styles from '../../login/login.module.css';
 
+const RECOVERY_COOKIE = 'hackorbit-recovery';
+
 /**
  * Reached only via a recovery link, which /auth/callback has already exchanged
  * for a session. Without that session there is nothing to update, so the page
  * says so rather than showing a form that cannot work.
+ *
+ * A session alone is NOT proof of recovery — every signed-in user has one, so
+ * gating on it let anyone deep-link here and change the password with no
+ * re-auth. The marker cookie /auth/callback sets for `type=recovery` is what
+ * actually distinguishes the two, and it is cleared once the password is saved.
  */
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const [ready, setReady] = useState<'checking' | 'ok' | 'no-session'>('checking');
+  // Derived, not set in an effect: the module client is known at first render.
+  const [ready, setReady] = useState<'checking' | 'ok' | 'no-session'>(
+    supabase ? 'checking' : 'no-session'
+  );
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [show, setShow] = useState(false);
@@ -20,8 +30,14 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!supabase) return setReady('no-session');
-    supabase.auth.getSession().then(({ data }) => setReady(data.session ? 'ok' : 'no-session'));
+    if (!supabase) return;
+    const fromRecoveryLink = document.cookie
+      .split('; ')
+      .some((c) => c.startsWith(`${RECOVERY_COOKIE}=1`));
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setReady(data.session && fromRecoveryLink ? 'ok' : 'no-session'));
   }, []);
 
   const submit = async (e: React.FormEvent) => {
@@ -36,6 +52,9 @@ export default function ResetPasswordPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
+
+      // Spend the marker so the link cannot be reused to reach this form again.
+      document.cookie = `${RECOVERY_COOKIE}=; Max-Age=0; path=/`;
 
       // Anyone holding an old session — including whoever forced the reset —
       // is signed out. The user re-authenticates with the new password.

@@ -17,10 +17,15 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  // Sign-in failed because the address was never confirmed. The resend button
+  // on /account is unreachable for these users: confirmation is required to
+  // sign in, so they can never get there.
+  const [unconfirmed, setUnconfirmed] = useState(false);
 
   // /auth/callback redirects here with ?error= when a link is expired or reused.
   const callbackError = params.get('error');
   const justReset = params.get('reset') === '1';
+  const justDeleted = params.get('deleted') === '1';
 
   // New accounts land on onboarding; returning ones go where they were headed.
   // Only same-site absolute paths. A bare value would let ?next=https://evil/
@@ -61,6 +66,7 @@ function LoginForm() {
     if (!supabase) return;
     setError(null);
     setMessage(null);
+    setUnconfirmed(false);
     setLoading(true);
 
     try {
@@ -83,10 +89,29 @@ function LoginForm() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed');
+      const message = err instanceof Error ? err.message : 'Authentication failed';
+      setError(message);
+      setUnconfirmed(/not confirmed/i.test(message));
     } finally {
       setLoading(false);
     }
+  };
+
+  const resendConfirmation = async () => {
+    if (!supabase) return;
+    setError(null);
+    setUnconfirmed(false);
+    setLoading(true);
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email.trim(),
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setLoading(false);
+    // Same single message either way: the address is already known to exist
+    // here (sign-in told us so), but the send quota must not become a signal.
+    if (error) console.error('Resend confirmation failed:', error.message);
+    setMessage('If that address still needs confirming, a new link is on its way.');
   };
 
   const forgotPassword = async () => {
@@ -185,7 +210,17 @@ function LoginForm() {
             Password updated. Sign in with your new one.
           </div>
         )}
+        {justDeleted && !message && (
+          <div className={styles.notice} role="status">
+            Your account and everything in it has been deleted.
+          </div>
+        )}
         {error && <div className="errorBox" role="alert">{error}</div>}
+        {unconfirmed && (
+          <button type="button" className={styles.forgot} onClick={resendConfirmation} disabled={loading}>
+            Resend the confirmation email
+          </button>
+        )}
         {message && <div className={styles.notice} role="status">{message}</div>}
 
         <form onSubmit={submit} className={styles.form}>
@@ -220,9 +255,9 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={tab === 'signup' ? 8 : 6}
                 autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
-                placeholder="At least 6 characters"
+                placeholder={tab === 'signup' ? 'At least 8 characters' : 'Your password'}
               />
               <button
                 type="button"
