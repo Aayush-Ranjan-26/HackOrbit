@@ -11,14 +11,28 @@ import type { NextConfig } from 'next';
  */
 const isProd = process.env.NODE_ENV === 'production';
 
+/**
+ * A deployed backend is on its own origin (Render, Fly, an api subdomain), and
+ * a hardcoded localhost:8080 meant every apiFetch was blocked by CSP in
+ * production and surfaced as "Cannot reach the server". Derive it instead.
+ */
+const apiOrigin = (() => {
+  const base = process.env.NEXT_PUBLIC_API_BASE;
+  if (!base) return 'http://localhost:8080';
+  try {
+    return new URL(base).origin;
+  } catch {
+    return 'http://localhost:8080';
+  }
+})();
+
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: https:",
-  // Supabase for auth, plus the API. Both are same-origin in prod behind a proxy.
-  "connect-src 'self' https://*.supabase.co http://localhost:8080",
+  `connect-src 'self' https://*.supabase.co ${apiOrigin}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
