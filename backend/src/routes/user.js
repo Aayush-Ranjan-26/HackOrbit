@@ -181,6 +181,21 @@ router.patch('/saved/:hackathon_id/status', async (req, res, next) => {
   }
 });
 
+/**
+ * Deletes the caller's own account. Only ever the caller's: the id comes from
+ * the verified token, never from the request. profiles, saved_hackathons and
+ * calendar_events all cascade from auth.users, so this is the whole cleanup.
+ */
+router.delete('/account', async (req, res, next) => {
+  try {
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(req.user.id);
+    if (error) throw new AppError('Could not delete the account', 500, 'DELETE_FAILED');
+    res.json({ deleted: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ─── RECOMMENDATIONS ─────────────────────────────────────────────────────────
 
 const daysUntil = (date) =>

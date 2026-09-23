@@ -54,7 +54,9 @@ export default function Nav() {
           {!loading && configured && (
             user ? (
               <span className={styles.account}>
-                <span className={styles.email} title={user.email}>{user.email}</span>
+                <Link href="/account" className={styles.email} title={`Signed in as ${user.email}`}>
+                  {user.email}
+                </Link>
                 <button className={styles.signOut} onClick={() => signOut()}>Sign out</button>
               </span>
             ) : (

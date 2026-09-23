@@ -62,6 +62,7 @@
 .email {
   font-size: 0.78rem;
   color: var(--text-muted);
+  text-decoration: none;
   max-width: 14ch;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -128,3 +129,5 @@
 
   .email { max-width: none; }
 }
+
+.email:hover { color: var(--text); text-decoration: underline; }

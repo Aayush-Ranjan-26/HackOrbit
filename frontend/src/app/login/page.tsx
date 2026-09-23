@@ -17,6 +17,10 @@ function LoginForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
 
+  // /auth/callback redirects here with ?error= when a link is expired or reused.
+  const callbackError = params.get('error');
+  const justReset = params.get('reset') === '1';
+
   // New accounts land on onboarding; returning ones go where they were headed.
   // Only same-site absolute paths. A bare value would let ?next=https://evil/
   // (or the protocol-relative //evil) hard-navigate off-site straight after a
@@ -58,7 +62,11 @@ function LoginForm() {
         if (error) throw error;
         router.replace(next);
       } else {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        });
         if (error) throw error;
         // With email confirmation off, Supabase returns a session immediately.
         if (data.session) router.replace('/onboarding');
@@ -74,12 +82,36 @@ function LoginForm() {
     }
   };
 
+  const forgotPassword = async () => {
+    if (!supabase) return;
+    setError(null);
+    setMessage(null);
+
+    if (!email.trim()) return setError('Enter your email address first, then choose Forgot password.');
+
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+    });
+    setLoading(false);
+
+    // Deliberately the same message either way — confirming which addresses
+    // have accounts would turn this form into an account-enumeration oracle.
+    if (error && !/rate|limit/i.test(error.message)) {
+      setMessage('If that address has an account, a reset link is on its way.');
+    } else if (error) {
+      setError('Too many attempts. Wait a minute and try again.');
+    } else {
+      setMessage('If that address has an account, a reset link is on its way.');
+    }
+  };
+
   const google = async () => {
     if (!supabase) return;
     setError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}${next}` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
     });
     if (error) setError(error.message);
   };
@@ -138,6 +170,14 @@ function LoginForm() {
 
         {googleEnabled && <div className={styles.divider}><span>or</span></div>}
 
+        {callbackError && !error && (
+          <div className="errorBox" role="alert">{callbackError}</div>
+        )}
+        {justReset && !message && (
+          <div className={styles.notice} role="status">
+            Password updated. Sign in with your new one.
+          </div>
+        )}
         {error && <div className="errorBox" role="alert">{error}</div>}
         {message && <div className={styles.notice} role="status">{message}</div>}
 
@@ -157,7 +197,14 @@ function LoginForm() {
           </div>
 
           <div className={styles.field}>
-            <label htmlFor="password">Password</label>
+            <div className={styles.labelRow}>
+              <label htmlFor="password">Password</label>
+              {tab === 'login' && (
+                <button type="button" className={styles.forgot} onClick={forgotPassword}>
+                  Forgot password?
+                </button>
+              )}
+            </div>
             <div className={styles.passwordWrap}>
               <input
                 id="password"

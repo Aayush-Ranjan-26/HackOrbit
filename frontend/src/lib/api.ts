@@ -88,6 +88,9 @@ export const unsaveHackathon = (id: string) => apiFetch(`/user/saved/${id}`, { m
 export const updateSavedStatus = (id: string, status: SavedStatus) =>
   apiFetch(`/user/saved/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
 
+/** Deletes the signed-in user's own account; all their rows cascade. */
+export const deleteAccount = () => apiFetch<{ deleted: boolean }>('/user/account', { method: 'DELETE' });
+
 export const fetchCalendar = () =>
   apiFetch<{ events: CalendarEvent[]; hackathons: Hackathon[] }>('/user/calendar');
 
