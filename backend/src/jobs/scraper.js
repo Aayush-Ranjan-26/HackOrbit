@@ -581,7 +581,34 @@ const SOURCES = [
   { name: 'unstop', fn: scrapeUnstop },
 ];
 
+/*
+ * One scrape at a time. The guard lives here, not in the route, because there
+ * are two callers now: POST /admin/scrape and the hourly cron. Guarding only
+ * the route left the cron free to start a second concurrent run — five sites
+ * with retries, twice over, which is a self-inflicted DoS and a fast route to
+ * being IP-banned.
+ */
+let inFlight = false;
+
+/** Whether a scrape is running right now — /admin/scrape-status reports it. */
+export function isScrapeRunning() {
+  return inFlight;
+}
+
 export async function runScrapeJob() {
+  if (inFlight) {
+    console.warn('[scraper] a scrape is already running — skipping this trigger');
+    return null;
+  }
+  inFlight = true;
+  try {
+    return await scrapeAll();
+  } finally {
+    inFlight = false;
+  }
+}
+
+async function scrapeAll() {
   console.log('[scraper] starting');
 
   const results = await Promise.allSettled(
