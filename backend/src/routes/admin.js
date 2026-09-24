@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { runScrapeJob } from '../jobs/scraper.js';
+import { isScrapeRunning, runScrapeJob } from '../jobs/scraper.js';
 import { supabaseAdmin } from '../lib/supabase.js';
 
 const router = Router();
@@ -27,20 +27,15 @@ function requireAdminKey(req, res, next) {
 
 router.use(requireAdminKey);
 
-// One scrape at a time: the job hits five sites with retries, so concurrent runs
-// are a self-inflicted DoS and a fast route to being IP-banned by those sites.
-let scrapeInFlight = false;
-
+// One scrape at a time. The guard itself lives in runScrapeJob, because the
+// hourly cron is a second caller and a route-local flag never saw it.
 router.post('/scrape', (req, res) => {
-  if (scrapeInFlight) {
+  if (isScrapeRunning()) {
     return res.status(409).json({ error: 'A scrape is already running', code: 'ALREADY_RUNNING' });
   }
-  scrapeInFlight = true;
   res.status(202).json({ message: 'Scrape started', started_at: new Date().toISOString() });
 
-  runScrapeJob()
-    .catch((err) => console.error('[admin/scrape]', err.message))
-    .finally(() => { scrapeInFlight = false; });
+  runScrapeJob().catch((err) => console.error('[admin/scrape]', err.message));
 });
 
 router.get('/scrape-status', async (_req, res) => {
@@ -51,7 +46,7 @@ router.get('/scrape-status', async (_req, res) => {
     .limit(20);
 
   if (error) return res.status(500).json({ error: 'Could not read logs', code: 'DB_ERROR' });
-  res.json({ logs: data || [], running: scrapeInFlight });
+  res.json({ logs: data || [], running: isScrapeRunning() });
 });
 
 router.get('/stats', async (_req, res) => {

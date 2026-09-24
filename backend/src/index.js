@@ -83,11 +83,17 @@ export const server = app.listen(PORT, () => {
 // Set ENABLE_CRON=true on exactly one instance, or drive /admin/scrape from an
 // external scheduler (GitHub Actions, cron-job.org, Render cron).
 if (process.env.ENABLE_CRON === 'true') {
-  cron.schedule('0 */6 * * *', () => {
+  // Hourly by default. There are no webhooks from any of the five sources, so
+  // freshness is bounded by how often we poll — but polling harder is not free:
+  // each run is five sites, and a stampede is a fast route to an IP ban. An
+  // hour keeps the feed current without becoming a nuisance.
+  // ponytail: SCRAPE_CRON is the knob if an hour turns out to be wrong.
+  const schedule = process.env.SCRAPE_CRON || '0 * * * *';
+  cron.schedule(schedule, () => {
     console.log('[cron] scheduled scrape starting');
     runScrapeJob().catch((err) => console.error('[cron] scrape failed:', err.message));
   });
-  console.log('[cron] enabled — scraping every 6 hours');
+  console.log(`[cron] enabled — schedule "${schedule}"`);
 }
 
 export default app;
