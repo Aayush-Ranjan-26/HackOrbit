@@ -7,7 +7,10 @@ import assert from 'node:assert/strict';
 process.env.SUPABASE_URL = 'http://127.0.0.1:1';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy-service-role-key';
 
-const { parsePrizeAmount, mlhEventYear, mlhSeasons, mlhEventDates, toISO, stripHTML, isGenericSkill } =
+const {
+  parsePrizeAmount, mlhEventYear, mlhSeasons, mlhEventDates, toISO, stripHTML, isGenericSkill,
+  isHackathonTitle,
+} =
   await import('../src/jobs/scraper.js');
 
 describe('parsePrizeAmount', () => {
@@ -187,5 +190,43 @@ describe('toISO on a zone-less ISO timestamp', () => {
     // this ISO" silently sent every October date down the local-parse path.
     assert.equal(toISO('2026-03-01T10:00:00'), '2026-03-01T10:00:00.000Z');
     assert.equal(toISO('OCT 31, 2026'), '2026-10-31T00:00:00.000Z');
+  });
+});
+
+describe('isHackathonTitle', () => {
+  // Unstop files real hackathons under `competitions`, alongside ~350 B-plans
+  // and quizzes. `subtype` does not separate them, so the title has to.
+  test('finds the hackathons hiding in the competitions feed', () => {
+    for (const t of ['Hack Sphere', 'Software Ideathon I', 'CodeCraft Hackathon',
+                     'BIO-ECONOMY HACKATHON 2026', 'The Golden Hour - A Voice AI Hackathon',
+                     'Fixton Ideathon', 'Ideathon']) {
+      assert.equal(isHackathonTitle(t), true, `expected "${t}" to be kept`);
+    }
+  });
+
+  // A bare \w+athon matches every one of these, and none is a hackathon.
+  test('rejects the other -athons and the plain competitions', () => {
+    for (const t of ['Case-a-thon', 'Ai Filmathon', 'CADathon', 'Nirmiti CADathon',
+                     'Brandathon', 'Chemi-Thone', 'Shark Tank', 'B-Plan', 'Robo War',
+                     'Advertising Competition']) {
+      assert.equal(isHackathonTitle(t), false, `expected "${t}" to be skipped`);
+    }
+  });
+});
+
+describe('mlhEventYear July boundary', () => {
+  // Season 2027's earliest event is 2026-07-11, so July belongs to season - 1
+  // like the other autumn months. Treating it as the season's own year dated
+  // six finished hackathons a year into the future, where the expiry sweep
+  // would not have reached them for ten months.
+  test('July resolves to the previous calendar year', () => {
+    assert.equal(mlhEventYear('jul', '2027'), '2026');
+    assert.equal(mlhEventYear('JUL', '2027'), '2026');
+  });
+
+  test('the other months are unchanged', () => {
+    assert.equal(mlhEventYear('sep', '2027'), '2026');
+    assert.equal(mlhEventYear('jan', '2027'), '2027');
+    assert.equal(mlhEventYear('jun', '2027'), '2027');
   });
 });

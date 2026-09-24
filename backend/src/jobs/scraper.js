@@ -93,7 +93,9 @@ export function parsePrizeAmount(raw) {
  * calendar year N-1. Using the season as the year dates every autumn event a year late.
  */
 export function mlhEventYear(monthAbbr, season) {
-  const autumn = ['aug', 'sep', 'oct', 'nov', 'dec'];
+  // July too: season 2027's earliest event is 2026-07-11, and no season page
+  // carries a July event belonging to the season's own year.
+  const autumn = ['jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
   return autumn.includes(String(monthAbbr).slice(0, 3).toLowerCase())
     ? String(Number(season) - 1)
     : String(season);
@@ -173,7 +175,13 @@ async function scrapeDevpost() {
   for (let page = 1; page <= 20; page++) {
     let data;
     try {
-      data = await fetchWithRetry(`https://devpost.com/api/hackathons?page=${page}&status[]=open`);
+      // `open` means *submissions* are open. `upcoming` is a much larger set
+      // whose REGISTRATION is already live with a real future deadline — which
+      // is what this app tracks — so it belongs in the feed. per_page is
+      // clamped to 40 server-side; asking for more just returns 40.
+      data = await fetchWithRetry(
+        `https://devpost.com/api/hackathons?page=${page}&per_page=40&status[]=open&status[]=upcoming`
+      );
     } catch (err) {
       // Keep what earlier pages produced instead of failing the whole source,
       // the way the MLH adapter already isolates a single season.
@@ -184,7 +192,9 @@ async function scrapeDevpost() {
     if (!hackathons.length) break;
 
     for (const h of hackathons) {
-      if (h.open_state && h.open_state !== 'open') continue;
+      // Without this the extra `upcoming` records are fetched and immediately
+      // thrown away. `ended` still never gets through.
+      if (h.open_state && !['open', 'upcoming'].includes(h.open_state)) continue;
 
       // "Jul 31 - Oct 01, 2026" — only the second half carries the year, so the
       // start must borrow it rather than defaulting to the current year.
@@ -192,7 +202,14 @@ async function scrapeDevpost() {
       let deadline = null;
       const span = h.submission_period_dates;
       if (typeof span === 'string') {
-        const [rawStart, rawEnd] = span.includes(' - ') ? span.split(' - ') : [null, span];
+        const [rawStart, spanEnd] = span.includes(' - ') ? span.split(' - ') : [null, span];
+        let rawEnd = spanEnd;
+        // Inside one month Devpost drops the month from the end: "Sep 11 - 27,
+        // 2026". `toISO("27, 2026")` is null, so isFuture() rejected it and a
+        // live hackathon vanished with no log line. Borrow the month from the
+        // start of the same string — nothing is invented.
+        const startMonth = rawStart?.trim().match(/^[A-Za-z]{3,}/)?.[0];
+        if (startMonth && !/[A-Za-z]/.test(rawEnd)) rawEnd = `${startMonth} ${rawEnd.trim()}`;
         deadline = toISO(rawEnd);
         if (rawStart && deadline) {
           const year = new Date(deadline).getUTCFullYear();
@@ -288,7 +305,20 @@ async function scrapeMLH() {
       const linkText = linkEl.text().trim();
       if (!href || !linkText || href.includes('mlh.io/seasons')) return;
 
-      const dates = mlhEventDates(linkText, season);
+      /*
+       * Every card is now a schema.org/Event carrying exact ISO dates and an
+       * attendance mode. Prefer those over the "SEP 25 - 27" link text, whose
+       * year has to be inferred from the season — and that inference is a year
+       * LATE for every July event, because season 2027 opens in July 2026. Six
+       * finished hackathons were sitting in the feed with a 2027 deadline, which
+       * the expiry sweep would not have touched for ten months.
+       */
+      const meta = (prop) => linkEl.find(`meta[itemprop="${prop}"]`).attr('content') || '';
+      const dates =
+        meta('startDate') && meta('endDate')
+          ? { startISO: toISO(meta('startDate')), endISO: toISO(meta('endDate')), matched: '' }
+          : mlhEventDates(linkText, season);
+
       if (!dates) {
         console.warn(`[scraper:mlh] no date in "${linkText.slice(0, 80)}" — skipping "${title}"`);
         return;
@@ -297,12 +327,21 @@ async function scrapeMLH() {
       if (!isFuture(endISO)) return;
 
       seen.add(title);
-      const isDigital = /digital|everywhere/i.test(linkText);
-      const afterDate = linkText.slice(linkText.indexOf(matched) + matched.length);
+      const mode = meta('eventAttendanceMode');
+      // "DigitalOcean" in a title matched /digital/ and flipped an in-person
+      // event online, so the declared mode wins wherever it exists.
+      const isDigital = mode ? /Online/.test(mode) : /digital|everywhere/i.test(linkText);
+      const hackathon_type = /Mixed/.test(mode) ? 'hybrid' : isDigital ? 'online' : 'offline';
+
+      // matched is '' on the microdata path, so guard before slicing by it.
+      const afterDate = matched ? linkText.slice(linkText.indexOf(matched) + matched.length) : '';
       const locationMatch = afterDate.match(/([A-Z][a-z]+[^,]*,\s*[^,]+)/);
-      const location = locationMatch
-        ? locationMatch[1].replace(/(In-Person|Digital|DIVERSITY|HIGH SCHOOL)/gi, '').trim()
-        : null;
+      const location =
+        linkEl.find('[itemprop="location"] [itemprop="name"]').first().text().trim() ||
+        (locationMatch
+          ? locationMatch[1].replace(/(In-Person|Digital|DIVERSITY|HIGH SCHOOL)/gi, '').trim()
+          : null) ||
+        null;
 
       records.push({
         title,
@@ -310,7 +349,7 @@ async function scrapeMLH() {
         // Strip MLH's UTM params so the conflict key stays stable across runs.
         source_url: (href.startsWith('http') ? href : `https://mlh.io${href}`).split('?')[0],
         banner_url: linkEl.find('img').attr('src') || null,
-        hackathon_type: isDigital ? 'online' : 'offline',
+        hackathon_type,
         description: location || (isDigital ? 'Online / Worldwide' : null),
         registration_deadline: endISO,
         start_date: startISO,
@@ -361,18 +400,25 @@ async function scrapeHackerEarth() {
 
 // ─── Devfolio ────────────────────────────────────────────────────────────────
 async function scrapeDevfolio() {
-  const html = await fetchWithRetry('https://devfolio.co/hackathons', {
-    headers: { Accept: 'text/html,application/xhtml+xml' },
-  });
-
-  const match = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s);
-  if (!match) {
-    console.warn('[scraper:devfolio] __NEXT_DATA__ missing — page structure changed');
-    return [];
+  // The /hackathons page server-renders only 20 open hackathons — its own
+  // GraphQL query carries `limit: 20`, and Devfolio's anonymous Hasura role
+  // caps any page at 20 rows anyway, so __NEXT_DATA__ could never yield more.
+  // This is the index their /hackathons/open page reads; it returns a total, so
+  // the loop stops as soon as it has everything.
+  const open = [];
+  for (let from = 0; from < 500; from += 100) {
+    const data = await fetchWithRetry('https://api.devfolio.co/api/search/hackathons', {
+      method: 'POST',
+      data: { type: 'application_open', from, size: 100 },
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    });
+    const hits = data?.hits?.hits || [];
+    if (!hits.length) break;
+    open.push(...hits.map((hit) => hit._source).filter(Boolean));
+    if (open.length >= (data?.hits?.total?.value ?? 0)) break;
   }
 
-  const data = JSON.parse(match[1]);
-  const open = data?.props?.pageProps?.dehydratedState?.queries?.[0]?.state?.data?.open_hackathons || [];
+  if (!open.length) console.warn('[scraper:devfolio] search index returned nothing — endpoint may have changed');
   const records = [];
 
   for (const h of open) {
@@ -381,14 +427,17 @@ async function scrapeDevfolio() {
 
     // ends_at is when the EVENT ends; registration closes earlier, at reg_ends_at.
     // Using ends_at overstates the time left to register by days or weeks.
-    const deadline = toISO(h.settings?.reg_ends_at) || toISO(h.ends_at);
+    // The search index names the settings block `hackathon_setting`; the old
+    // SSR payload called it `settings`. Both are read so either shape works.
+    const settings = h.hackathon_setting || h.settings;
+    const deadline = toISO(settings?.reg_ends_at) || toISO(h.ends_at);
     if (!isFuture(deadline)) continue;
 
     records.push({
       title: stripHTML(h.name) || 'Untitled',
       source: 'devfolio',
       source_url: `https://${slug}.devfolio.co`,
-      banner_url: h.cover_img || h.settings?.featured_cover_img || null,
+      banner_url: h.cover_img || settings?.logo || settings?.featured_cover_img || null,
       description: h.tagline ? stripHTML(h.tagline) : null,
       hackathon_type: h.is_online ? 'online' : 'offline',
       prize_pool: null,
@@ -417,23 +466,52 @@ export function isGenericSkill(name) {
 }
 
 // ─── Unstop ──────────────────────────────────────────────────────────────────
+/*
+ * Unstop files some genuine hackathons under `opportunity=competitions`, mixed
+ * in with ~350 B-plans, quizzes, case studies and Shark-Tank clones. `subtype`
+ * does not separate them — `innovation_challenge` holds "Robo War" and
+ * "Advertising Competition" next to real hackathons — so the title is the only
+ * reliable signal.
+ *
+ * Deliberately not a bare `\w+athon`: that also matches Brandathon, CADathon,
+ * Filmathon and Case-a-thon, none of which is a hackathon.
+ *
+ * ponytail: a title regex is a heuristic and will miss an oddly-named hackathon.
+ * Worth replacing only if Unstop ever exposes a real type for these.
+ */
+const HACKATHON_TITLE = /\bhack(?:athon|s|[- ]?sphere)?\b|\bideathon\b|\bbuildathon\b|\bcodeathon\b|\bdatathon\b/i;
+
+/** True for a competitions-feed title that names an actual hackathon. */
+export function isHackathonTitle(title) {
+  return HACKATHON_TITLE.test(String(title));
+}
+
 async function scrapeUnstop() {
   const records = [];
+  // The hackathons feed reports last_page: 5, so the 15-page budget was never
+  // the constraint. The competitions feed is where the extra records hide.
+  for (const feed of ['hackathons', 'competitions']) await scrapeUnstopFeed(feed, records);
+  return records;
+}
 
+async function scrapeUnstopFeed(feed, records) {
   for (let page = 1; page <= 15; page++) {
     let data;
     try {
       data = await fetchWithRetry(
-        `https://unstop.com/api/public/opportunity/search-new?opportunity=hackathons&per_page=50&page=${page}&oppstatus=open`
+        `https://unstop.com/api/public/opportunity/search-new?opportunity=${feed}&per_page=50&page=${page}&oppstatus=open`
       );
     } catch (err) {
-      console.warn(`[scraper:unstop] page ${page} failed (${err.message}) — keeping ${records.length} so far`);
+      console.warn(`[scraper:unstop] ${feed} page ${page} failed (${err.message}) — keeping ${records.length} so far`);
       break;
     }
     const opportunities = data?.data?.data || [];
     if (!opportunities.length) break;
 
     for (const h of opportunities) {
+      // The hackathons feed is already the right set; only the mixed
+      // competitions feed needs its titles checked.
+      if (feed === 'competitions' && !isHackathonTitle(h.title)) continue;
       if (['closed', 'completed'].includes(String(h.status).toLowerCase())) continue;
 
       // end_date is the EVENT end; end_regn_dt is when registration actually closes.
@@ -491,7 +569,6 @@ async function scrapeUnstop() {
       });
     }
   }
-  return records;
 }
 
 // ─── Job runner ──────────────────────────────────────────────────────────────
