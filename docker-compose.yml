@@ -14,6 +14,9 @@ services:
       - "8080:8080"
     env_file:
       - backend/.env
+    environment:
+      # Prevent compose from starting the hourly scrape against production
+      ENABLE_CRON: "false"
 
   frontend:
     build:
@@ -30,5 +33,8 @@ services:
       - "3000:3000"
     env_file:
       - frontend/.env.local
+    environment:
+      # Inside compose network, backend service name must be used instead of localhost:8080
+      API_BASE: "http://backend:8080"
     depends_on:
       - backend

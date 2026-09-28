@@ -45,6 +45,7 @@ const nextConfig: NextConfig = {
   // Emits .next/standalone with a self-contained server.js, so the Docker image
   // ships only the files actually traced as needed instead of all of node_modules.
   output: 'standalone',
+  poweredByHeader: false,
 
   async headers() {
     return [
