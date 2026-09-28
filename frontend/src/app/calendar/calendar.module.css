@@ -26,8 +26,6 @@
   margin-bottom: 5px;
   font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--text-faint);
   text-align: center;
 }

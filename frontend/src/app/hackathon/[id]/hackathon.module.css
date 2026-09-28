@@ -19,8 +19,6 @@
 .source {
   font-size: 0.72rem;
   font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   border: 1px solid;
   border-radius: 999px;
   padding: 0.2rem 0.7rem;
@@ -84,8 +82,6 @@
 .fact dt {
   font-size: 0.68rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--text-faint);
   margin-bottom: 0.3rem;
 }

@@ -76,8 +76,8 @@ export default function HackathonCard({
         )}
 
         <div className={styles.facts}>
-          {prize && <span className={styles.prize}>🏆 {prize}</span>}
-          {h.team_size_label && <span>👥 {h.team_size_label}</span>}
+          {prize && <span className={styles.prize}>{prize}</span>}
+          {h.team_size_label && <span>{h.team_size_label}</span>}
         </div>
 
         <div className={styles.actions}>

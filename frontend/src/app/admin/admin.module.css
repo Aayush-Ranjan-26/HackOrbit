@@ -22,8 +22,6 @@
 
 .statLabel {
   font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
   color: var(--text-muted);
   font-weight: 600;
 }
@@ -47,8 +45,6 @@
   padding: 0.85rem 1rem;
   font-size: 0.75rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: var(--text-muted);
 }
 
