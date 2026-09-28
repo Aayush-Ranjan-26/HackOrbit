@@ -354,11 +354,12 @@ and flaws that live between components rather than inside one.
       truncated in the trigger. Verified live before and after: a 200-character
       name and a 138-character address failed with the constraint error, and
       now create accounts with the values cut to the limit
-- [ ] **Confirm Supabase → Auth → Providers → Email → Secure email change is on.**
-      Any session can call Supabase's email-change endpoint whether or not the app
-      offers it. If only the new address must confirm, a stolen session swaps the
-      email, resets the password, and owns the account. On by default, but not
-      exposed by the API, so it is unverified
+- [x] **Supabase → Auth → Providers → Email → Secure email change is on**
+      (confirmed by the owner in the dashboard). Any session can call Supabase's
+      email-change endpoint whether or not the app offers it; with this on, both
+      the old and the new address must confirm, so a stolen session cannot swap
+      the email and reset its way to the account. Not exposed by the API, so it
+      is recorded on the owner's confirmation rather than tested
 
 Checked, not vulnerable: no `dangerouslySetInnerHTML`; `banner_url` is never
 rendered; `source_url` reaches an `href` only through the scraper, the sole
