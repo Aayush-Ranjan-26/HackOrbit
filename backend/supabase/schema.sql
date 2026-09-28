@@ -165,11 +165,16 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- Truncated to profiles_len_chk's limits. This runs INSIDE the transaction
+  -- that creates the auth user, so a value over the limit does not just skip
+  -- the profile — it rolls back the whole sign-up ("Database error saving new
+  -- user"). That locked out any address over 120 characters (emails may be
+  -- 254) and any Google account whose name is that long, on its first sign-in.
   INSERT INTO public.profiles (id, display_name, avatar_url)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
-    NEW.raw_user_meta_data->>'avatar_url'
+    left(COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email), 120),
+    left(NEW.raw_user_meta_data->>'avatar_url', 500)
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;

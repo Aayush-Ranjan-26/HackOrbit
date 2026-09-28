@@ -344,6 +344,22 @@ and flaws that live between components rather than inside one.
       shares 120/min. The README warned only about the opposite mistake. Now the
       API warns at boot in production — verified it fires only then
 
+- [x] **Sign-up failed for long names and addresses — a regression from Phase 14.**
+      `handle_new_user()` copied `full_name` (or, failing that, the email) and
+      `avatar_url` into the profile untruncated, and the new `profiles_len_chk`
+      rejected anything over 120 / 500 characters. The trigger runs inside the
+      transaction that creates the auth user, so it rolled back the whole
+      sign-up: any address over 120 characters (emails may be 254), and any
+      Google account whose name is that long, on its first sign-in. Now
+      truncated in the trigger. Verified live before and after: a 200-character
+      name and a 138-character address failed with the constraint error, and
+      now create accounts with the values cut to the limit
+- [ ] **Confirm Supabase → Auth → Providers → Email → Secure email change is on.**
+      Any session can call Supabase's email-change endpoint whether or not the app
+      offers it. If only the new address must confirm, a stolen session swaps the
+      email, resets the password, and owns the account. On by default, but not
+      exposed by the API, so it is unverified
+
 Checked, not vulnerable: no `dangerouslySetInnerHTML`; `banner_url` is never
 rendered; `source_url` reaches an `href` only through the scraper, the sole
 writer of `hackathons`. GET-based CSRF on the admin proxy lands on a POST-only
