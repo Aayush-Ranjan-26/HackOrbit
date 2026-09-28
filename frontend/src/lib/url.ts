@@ -16,7 +16,11 @@ export function sameSitePath(raw: string | null | undefined, origin: string): st
   try {
     const url = new URL(raw, origin);
     if (url.origin !== origin) return null;
-    return `${url.pathname}${url.search}${url.hash}`;
+    const path = `${url.pathname}${url.search}${url.hash}`;
+    // Dot segments collapse after the origin check: `/..//evil.example` resolves
+    // on-site but leaves the path `//evil.example`, protocol-relative once it is
+    // used as a Location. Re-resolve the result and require the same origin.
+    return new URL(path, origin).origin === origin ? path : null;
   } catch {
     return null;
   }

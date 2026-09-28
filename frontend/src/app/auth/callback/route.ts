@@ -21,8 +21,17 @@ export async function GET(request: Request) {
   // This value ends up in a Location header, so it must be resolved, not matched.
   const next = sameSitePath(url.searchParams.get('next'), url.origin);
 
-  const fail = (reason: string) =>
-    NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(reason)}`, url.origin));
+  /*
+   * A relative Location, resolved by the browser against the URL it actually
+   * requested. request.url's origin is the server's bind address, and under the
+   * standalone server (HOSTNAME=0.0.0.0) that sent users to http://0.0.0.0:3000.
+   * Building an absolute URL from Host / X-Forwarded-Host instead would let a
+   * forged header pick the redirect target. NextResponse.redirect rejects
+   * relative URLs, so set the header by hand; cookies written through
+   * cookies() are merged into whatever Response the handler returns.
+   */
+  const go = (path: string) => new NextResponse(null, { status: 307, headers: { Location: path } });
+  const fail = (reason: string) => go(`/login?error=${encodeURIComponent(reason)}`);
 
   /*
    * Supabase reports a dead link as ?error=access_denied&error_code=otp_expired
@@ -92,7 +101,7 @@ export async function GET(request: Request) {
   // holds the email can reach the app without changing the password. Closing
   // that needs a server-side reset endpoint using the service-role key.
   if (type === 'recovery') {
-    return NextResponse.redirect(new URL('/auth/reset', url.origin));
+    return go('/auth/reset');
   }
 
   /*
@@ -109,11 +118,11 @@ export async function GET(request: Request) {
       .maybeSingle();
 
     if (!profile?.interests?.length) {
-      return NextResponse.redirect(new URL('/onboarding', url.origin));
+      return go('/onboarding');
     }
   }
 
-  if (next) return NextResponse.redirect(new URL(next, url.origin));
+  if (next) return go(next);
 
-  return NextResponse.redirect(new URL('/explore', url.origin));
+  return go('/explore');
 }
