@@ -30,6 +30,9 @@ export function openHackathons(columns = '*', options = {}) {
     .from('hackathons')
     .select(columns, options)
     .eq('is_active', true)
+    // Taken down by hand. See `hidden` in schema.sql: is_active cannot serve,
+    // because the scraper rewrites it to true every hour.
+    .eq('hidden', false)
     .gt('registration_deadline', new Date().toISOString());
 }
 

@@ -24,9 +24,9 @@ function LoginForm() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captcha = useRef<TurnstileHandle>(null);
   const captchaPending = Boolean(TURNSTILE_SITE_KEY) && !captchaToken;
-  // Sign-in failed because the address was never confirmed. The resend button
-  // on /account is unreachable for these users: confirmation is required to
-  // sign in, so they can never get there.
+  // Sign-in failed because the address was never confirmed. This is the only
+  // place such a user can resend from: confirmation is required to sign in, so
+  // they never reach /account.
   const [unconfirmed, setUnconfirmed] = useState(false);
 
   // /auth/callback redirects here with ?error= when a link is expired or reused.
@@ -114,6 +114,11 @@ function LoginForm() {
 
   const resendConfirmation = async () => {
     if (!supabase) return;
+    // Before anything else, and before the button is hidden: the sign-in that
+    // revealed this button spent the CAPTCHA token, so for a moment there is
+    // none. Sending anyway was rejected by Supabase, and the single message
+    // below then told the user an email was on its way when none was.
+    if (captchaPending) return setError('Complete the check below first, then resend.');
     setError(null);
     setUnconfirmed(false);
     setLoading(true);
@@ -239,7 +244,7 @@ function LoginForm() {
         )}
         {error && <div className="errorBox" role="alert">{error}</div>}
         {unconfirmed && (
-          <button type="button" className={styles.forgot} onClick={resendConfirmation} disabled={loading}>
+          <button type="button" className={styles.forgot} onClick={resendConfirmation} disabled={loading || captchaPending}>
             Resend the confirmation email
           </button>
         )}

@@ -319,6 +319,38 @@ Checked and fine as designed:
 - [x] 73 backend tests (was 54), 15 live checks against the running app, all
       passing. Every disposable account deleted; `hackathons` untouched
 
+## Phase 15 — Cross-component review
+
+A second pass aimed at what the Phase 14 agents did not cover: code added since,
+and flaws that live between components rather than inside one.
+
+- [x] **A taken-down listing came back within the hour — and never left users'
+      calendars.** `is_active` was the only takedown lever, but every scraper run
+      writes `is_active: true`, so a manual takedown reverted on the next hourly
+      upsert. Saved and calendar joined `hackathons(*)` with no filter at all, and
+      the calendar renders `source_url` as a live link. MLH links go to ~80
+      organiser domains that cannot be allowlisted; a lapsed one re-registered by
+      a phisher is the case this matters for. Now a human-owned `hidden` column
+      the scraper never sends. **Verified live on a real listing:** hidden, it left
+      the feed, detail page, Saved, calendar and direct anon reads; an upsert of
+      the full row exactly as the scraper sends it returned 200 and left it
+      hidden; restored with its data byte-identical
+- [x] **"Resend confirmation" said an email was sent when none was.** The sign-in
+      that revealed the button spent the CAPTCHA token, the button was not gated
+      on a fresh one, Supabase rejected the send, and the single anti-enumeration
+      message reported success anyway. Introduced by the Phase 14 CAPTCHA work
+- [x] **Behind a hosting proxy, every user would share one rate limit.** With
+      `TRUST_PROXY` off, `req.ip` is the proxy for everyone, so the whole site
+      shares 120/min. The README warned only about the opposite mistake. Now the
+      API warns at boot in production — verified it fires only then
+
+Checked, not vulnerable: no `dangerouslySetInnerHTML`; `banner_url` is never
+rendered; `source_url` reaches an `href` only through the scraper, the sole
+writer of `hackathons`. GET-based CSRF on the admin proxy lands on a POST-only
+route. Google users can re-authenticate silently, but only someone already
+controlling that browser can use it, and a stolen refresh token still cannot
+mint a fresh sign-in.
+
 ## Needs you
 
 - [x] Supabase project created and `schema.sql` run — confirmed against real

@@ -147,6 +147,7 @@ router.get('/:id', async (req, res, next) => {
       .select('*')
       .eq('id', req.params.id)
       .eq('is_active', true)
+      .eq('hidden', false)
       .maybeSingle();
 
     if (error) throw dbError(error);

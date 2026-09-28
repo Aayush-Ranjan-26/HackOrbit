@@ -55,7 +55,9 @@ router.put('/profile', async (req, res, next) => {
 /** Flattens the join and drops rows whose hackathon was deleted underneath us. */
 function flattenSaved(rows) {
   return (rows || [])
-    .filter((r) => r.hackathons)
+    // Expired listings stay — a saved hackathon you applied to should not vanish
+    // — but taken-down ones go, or their link would outlive the takedown here.
+    .filter((r) => r.hackathons && !r.hackathons.hidden)
     .map(({ hackathons, status, saved_at }) => ({ ...hackathons, status, saved_at }));
 }
 
@@ -252,7 +254,9 @@ router.get('/calendar', async (req, res, next) => {
 
     if (error) throw dbError(error);
 
-    const hackathons = (data || []).map((r) => r.hackathons).filter(Boolean);
+    // Same rule as Saved: the calendar renders source_url as a live link, so a
+    // taken-down listing must not survive here either.
+    const hackathons = (data || []).map((r) => r.hackathons).filter((h) => h && !h.hidden);
     const events = [];
 
     for (const h of hackathons) {

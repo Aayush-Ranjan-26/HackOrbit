@@ -20,6 +20,17 @@ app.disable('x-powered-by');
 // unconditionally lets any caller rotate the header to reset their own rate limit.
 app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
 
+// The opposite mistake is just as bad, and silent. Behind a platform proxy
+// (Render, Fly, Vercel) with this off, req.ip is the PROXY's address for every
+// caller, so the whole site shares one 120/min rate-limit bucket — one busy
+// minute and every user gets 429s.
+if (process.env.NODE_ENV === 'production' && process.env.TRUST_PROXY !== 'true') {
+  console.warn(
+    '[rate-limit] TRUST_PROXY is off. Behind a platform proxy every user shares one ' +
+      '120/min bucket; set TRUST_PROXY=true if this instance sits behind one.'
+  );
+}
+
 // ─── CORS ────────────────────────────────────────────────────────────────────
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
   .split(',')

@@ -107,11 +107,20 @@ ALTER TABLE public.saved_hackathons          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.calendar_events           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.scrape_logs               ENABLE ROW LEVEL SECURITY;
 
--- hackathons: public read for active only
+-- The takedown switch. `is_active` cannot be one: the scraper owns it and
+-- writes `is_active: true` on every hourly upsert, so a listing hidden by hand
+-- came back within the hour. `hidden` is set only by a human and never sent by
+-- the scraper, so an upsert never touches it. Take a listing down with:
+--   UPDATE public.hackathons SET hidden = true WHERE id = '…';
+-- It then disappears from the feed, the detail page, Saved and the calendar.
+-- Must exist before the policy below references it.
+ALTER TABLE public.hackathons ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT false;
+
+-- hackathons: public read for active, not-taken-down only
 DROP POLICY IF EXISTS "hackathons_public_read" ON public.hackathons;
 CREATE POLICY "hackathons_public_read"
   ON public.hackathons FOR SELECT
-  USING (is_active = true);
+  USING (is_active = true AND hidden = false);
 
 -- profiles: own row only
 DROP POLICY IF EXISTS "profiles_own_select" ON public.profiles;

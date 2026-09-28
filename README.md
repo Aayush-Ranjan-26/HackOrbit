@@ -78,7 +78,7 @@ args in `docker-compose.yml` rather than at runtime.
 | `PORT` | no | Default `8080` |
 | `ALLOWED_ORIGINS` | no | Comma-separated CORS allowlist |
 | `ADMIN_SECRET_KEY` | no | Unset ⇒ `/admin/*` returns 503. No default by design |
-| `TRUST_PROXY` | no | `true` only when a reverse proxy really is in front. Otherwise a caller can forge `X-Forwarded-For` to reset their own rate limit |
+| `TRUST_PROXY` | no | `true` exactly when a reverse proxy is in front — which is **every** hosted platform (Render, Fly, Vercel). On without a proxy, a caller can forge `X-Forwarded-For` to reset their own rate limit. Off behind a proxy, every user shares one 120/min bucket and the whole site gets 429s |
 | `ENABLE_CRON` | no | `true` runs the hourly scrape in this process |
 | `INR_PER_USD` | no | FX used to normalise Devpost prizes (default 88) |
 
