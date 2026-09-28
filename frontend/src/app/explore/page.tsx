@@ -178,7 +178,6 @@ function ExploreInner() {
         {/* Backend down is a different problem from "no matches" and now says so. */}
         {error && !loading && (
           <div className="emptyState">
-            <div className="emptyIcon" aria-hidden="true">📡</div>
             <p>{error}</p>
             <button className="btn btnPrimary" onClick={() => router.refresh()}>Retry</button>
           </div>
@@ -208,7 +207,6 @@ function ExploreInner() {
 
         {!loading && !error && hackathons.length === 0 && (
           <div className="emptyState">
-            <div className="emptyIcon" aria-hidden="true">🛸</div>
             <p>No hackathons match these filters.</p>
             {filtered && (
               <button className="btn btnGhost" onClick={() => router.replace('/explore')}>Clear filters</button>

@@ -1,7 +1,12 @@
 import type { Metadata } from 'next';
+import { IBM_Plex_Sans, Unbounded } from 'next/font/google';
 import './globals.css';
 import Nav from '@/components/Nav';
 import Providers from '@/components/Providers';
+
+// Self-hosted at build time by next/font, so no runtime request to Google.
+const plex = IBM_Plex_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-plex' });
+const unbounded = Unbounded({ subsets: ['latin'], variable: '--font-unbounded' });
 
 export const metadata: Metadata = {
   title: 'HackOrbit — every hackathon, one feed',
@@ -18,7 +23,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       fixable from application code. suppressHydrationWarning applies only to
       the element it is on, so every child is still checked normally.
     */
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${plex.variable} ${unbounded.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
         <a href="#main" className="srOnly">Skip to content</a>
         <Providers>

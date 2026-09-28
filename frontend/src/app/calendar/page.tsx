@@ -120,7 +120,6 @@ export default function CalendarPage() {
     return (
       <div className="page">
         <div className="container-narrow emptyState">
-          <div className="emptyIcon" aria-hidden="true">📅</div>
           <h1 className="pageTitle">Your deadline calendar</h1>
           <p>Sign in to track registration and submission deadlines in one place.</p>
           <Link href="/login?next=/calendar" className="btn btnPrimary">Sign in</Link>
@@ -145,7 +144,6 @@ export default function CalendarPage() {
 
         {!loading && !error && calendarHackathons.length === 0 && (
           <div className="emptyState">
-            <div className="emptyIcon" aria-hidden="true">📅</div>
             <p>Your calendar is empty. Add a hackathon from Explore to track its deadlines here.</p>
             <Link href="/explore" className="btn btnPrimary">Explore hackathons</Link>
           </div>

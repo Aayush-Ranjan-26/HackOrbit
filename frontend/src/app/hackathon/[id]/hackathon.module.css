@@ -30,7 +30,6 @@
 
 .title {
   font-size: clamp(1.6rem, 4vw, 2.3rem);
-  font-weight: 800;
   margin-bottom: 0.9rem;
 }
 
@@ -53,10 +52,10 @@
 
 .domains li {
   font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--primary-bright);
-  background: var(--primary-dim);
-  border: 1px solid var(--primary-border);
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.22rem 0.7rem;
 }

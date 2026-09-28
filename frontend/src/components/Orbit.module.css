@@ -1,0 +1,182 @@
+/*
+ * Pure CSS 3D. The plane is tilted back; each ring spins on it; each planet's
+ * wrapper spins the other way (cancelling its slot angle too) and the planet
+ * tilts forward again, so it always faces the viewer, upright.
+ */
+.figure {
+  margin: 0;
+  width: 100%;
+  --tilt: 62deg;
+}
+
+.scene {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 0.6;
+  perspective: 1600px;
+}
+
+.plane {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  aspect-ratio: 1;
+  transform: translateY(-50%) rotateX(var(--tilt));
+  transform-style: preserve-3d;
+}
+
+.sun {
+  position: absolute;
+  inset: 43.5%;
+  border-radius: 50%;
+  background: var(--sun);
+  /* A flat halo, not a glow: the same amber at low alpha. */
+  box-shadow: 0 0 0 10px rgb(242 181 68 / 0.08);
+  transform: rotateX(calc(-1 * var(--tilt)));
+}
+
+.ring {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--orbit);
+  border-radius: 50%;
+  transform-style: preserve-3d;
+  animation: spin var(--dur) linear infinite;
+}
+
+.ring0 { inset: 29%; --dur: 70s; }
+.ring1 { inset: 16%; --dur: 120s; }
+.ring2 { inset: 2%; --dur: 190s; }
+
+.slot {
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--a));
+  transform-style: preserve-3d;
+}
+
+.counter {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  transform: rotate(calc(-1 * var(--a)));
+  transform-style: preserve-3d;
+  animation: counter var(--dur) linear infinite;
+}
+
+/* The link is a 30px target; the visible planet is its ::before. */
+.planet {
+  position: absolute;
+  inset: 0;
+  display: block;
+  border-radius: 50%;
+  /* Nudged toward the viewer so its own orbit line does not cut across it. */
+  transform: rotateX(calc(-1 * var(--tilt))) translateZ(8px);
+  transform-style: preserve-3d;
+}
+
+.planet::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: var(--c);
+  transition: inset 0.15s;
+}
+
+.planet:hover::before,
+.planet:focus-visible::before { inset: 5px; }
+
+.planet:focus-visible { outline-offset: 0; border-radius: 50%; }
+
+.label {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: max-content;
+  max-width: 15rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--raised-sm);
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  /* Lifted toward the viewer so a nearer planet cannot cover it. */
+  transform: translate3d(-50%, 0, 60px);
+  transition: opacity 0.15s, visibility 0.15s;
+}
+
+.planet:hover .label,
+.planet:focus-visible .label { opacity: 1; visibility: visible; }
+
+.labelTitle {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.labelMeta { color: var(--muted); font-size: 0.75rem; }
+
+/* Hold still while someone is aiming at a planet. */
+.plane:hover .ring,
+.plane:hover .counter,
+.plane:focus-within .ring,
+.plane:focus-within .counter { animation-play-state: paused; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes counter { to { transform: rotate(calc(-1 * var(--a) - 360deg)); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ring, .counter { animation: none; }
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 50ch;
+  margin: 0.5rem auto 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.caption p { margin: 0; }
+
+.counts { color: var(--text); }
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem 0.9rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sources li { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+.sources li::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--c);
+}

@@ -68,7 +68,6 @@ export default function ForYouPage() {
     return (
       <div className="page">
         <div className="container-narrow emptyState">
-          <div className="emptyIcon" aria-hidden="true">◎</div>
           <h1 className="pageTitle">Matched to you</h1>
           <p>Sign in and tell us what you build to get hackathons matched to your interests.</p>
           <Link href="/login?next=/for-you" className="btn btnPrimary">Sign in</Link>
@@ -94,7 +93,6 @@ export default function ForYouPage() {
 
         {state === 'error' && (
           <div className="emptyState">
-            <div className="emptyIcon" aria-hidden="true">📡</div>
             <p>Could not load your matches right now.</p>
           </div>
         )}
@@ -109,7 +107,6 @@ export default function ForYouPage() {
 
         {state === 'ready' && picks.length === 0 && (
           <div className="emptyState">
-            <div className="emptyIcon" aria-hidden="true">◎</div>
             <p>Nothing matches yet. Try widening your interests.</p>
             <Link href="/onboarding" className="btn btnGhost">Edit profile</Link>
           </div>

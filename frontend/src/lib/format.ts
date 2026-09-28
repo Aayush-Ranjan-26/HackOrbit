@@ -16,12 +16,13 @@ export function stripHTML(str?: string | null): string {
     .trim();
 }
 
+// Muted, flat planet colours. Each clears WCAG AA as text on --void and --surface.
 const SOURCE_COLORS: Record<string, string> = {
-  devpost: '#60a5fa',
-  mlh: '#f87171',
-  hackerearth: '#c084fc',
-  devfolio: '#22d3ee',
-  unstop: '#fbbf24',
+  devpost: '#7a9cc6',
+  mlh: '#d0876b',
+  hackerearth: '#9db083',
+  devfolio: '#6fafaa',
+  unstop: '#c9b28a',
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -36,7 +37,7 @@ const SOURCE_LABELS: Record<string, string> = {
 export const formatType = (t?: string | null) =>
   t ? t[0].toUpperCase() + t.slice(1) : '—';
 
-export const sourceColor = (s: string) => SOURCE_COLORS[s] || '#a78bfa';
+export const sourceColor = (s: string) => SOURCE_COLORS[s] || '#8b94a7';
 export const sourceLabel = (s: string) => SOURCE_LABELS[s] || s;
 
 /** Red inside 3 days, amber inside a week, green beyond. */

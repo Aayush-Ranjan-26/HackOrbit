@@ -11,7 +11,6 @@
 .card:hover {
   border-color: var(--primary-border);
   transform: translateY(-2px);
-  box-shadow: 0 12px 34px rgb(124 92 252 / 0.12);
 }
 
 .card:focus-within {
@@ -71,7 +70,7 @@
   font-size: 0.85rem;
   line-height: 1.5;
   color: var(--text-muted);
-  border-left: 2px solid var(--primary-border);
+  border-left: 2px solid var(--orbit);
   padding-left: 0.7rem;
 }
 
@@ -86,8 +85,8 @@
 
 .domain {
   font-size: 0.68rem;
-  color: var(--primary-bright);
-  background: var(--primary-dim);
+  color: var(--muted);
+  background: var(--void);
   border-radius: 4px;
   padding: 0.14rem 0.45rem;
 }

@@ -22,7 +22,7 @@ export default function Nav() {
     <header className={styles.header}>
       <nav className={styles.inner} aria-label="Main">
         <Link href="/" className={styles.brand}>
-          <span aria-hidden="true">⬡</span> HackOrbit
+          <span className={styles.sun} aria-hidden="true" /> HackOrbit
         </Link>
 
         <button

@@ -20,13 +20,18 @@
 }
 
 .brand {
-  font-weight: 800;
-  font-size: 1.05rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1rem;
   color: var(--text);
   text-decoration: none;
-  letter-spacing: -0.02em;
   white-space: nowrap;
 }
+
+.sun { width: 10px; height: 10px; border-radius: 50%; background: var(--sun); }
 
 .links {
   display: flex;

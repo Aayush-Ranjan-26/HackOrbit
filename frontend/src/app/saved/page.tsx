@@ -48,7 +48,6 @@ export default function SavedPage() {
     return (
       <div className="page">
         <div className="container-narrow emptyState">
-          <div className="emptyIcon" aria-hidden="true">🔖</div>
           <h1 className="pageTitle">Your saved hackathons</h1>
           <p>Sign in to save hackathons and track them from applied to submitted.</p>
           <Link href="/login?next=/saved" className="btn btnPrimary">Sign in</Link>
@@ -88,7 +87,6 @@ export default function SavedPage() {
 
         {!loading && !error && visible.length === 0 && (
           <div className="emptyState">
-            <div className="emptyIcon" aria-hidden="true">🔖</div>
             <p>Nothing {tab === 'all' ? 'saved' : `marked ${tab}`} yet.</p>
             <Link href="/explore" className="btn btnGhost">Browse hackathons</Link>
           </div>

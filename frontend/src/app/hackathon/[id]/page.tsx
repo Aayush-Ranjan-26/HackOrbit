@@ -58,7 +58,6 @@ export default function HackathonDetailPage({ params }: { params: Promise<{ id: 
     return (
       <div className="page">
         <div className="container-narrow emptyState">
-          <div className="emptyIcon" aria-hidden="true">🛸</div>
           <p>{error || 'That hackathon is no longer listed.'}</p>
           <Link href="/explore" className="btn btnGhost">Back to explore</Link>
         </div>
