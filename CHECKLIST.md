@@ -340,18 +340,27 @@ Checked and fine as designed:
       Without it, confirmation and password-reset emails do not return to the app
 - [ ] **Custom SMTP.** The built-in mailer caps at ~2 emails/hour and was
       exhausted during testing
-- [ ] **Two Supabase dashboard settings.** Password minimum is 6 with no
-      complexity rule and no leaked-password check (Auth → Passwords), and
-      signups are open (Auth → Settings). Neither is reachable from code
+- [x] **Password minimum raised to 8** (verified: 7 characters → `weak_password`).
+      Leaked-password checking is paid-plan only, see above
+- [-] **Signups are open** (Auth → Settings). Deliberate for a public discovery
+      site; CAPTCHA now makes bulk signup expensive
 - [ ] `docker build` has still never been executed — no Docker daemon on this
       machine. The Dockerfiles are written but unverified
-- [ ] **Run the Phase 14 hardening in `backend/supabase/schema.sql`** (the
+- [x] **Run the Phase 14 hardening in `backend/supabase/schema.sql`** (the
       block at the end) in the Supabase SQL editor. It cannot be applied from
       code — PostgREST has no DDL endpoint. Your current data violates none of it
-- [ ] **Supabase → Auth → Providers → Email → Secure password change.** The
+- [x] **Supabase → Auth → Providers → Email → Secure password change.** The
       only server-side fix for a stolen session changing the password. Needs
       custom SMTP first: the re-auth code goes out by email
-- [ ] **Enable CAPTCHA** (Auth → Attack Protection → Turnstile, paste the SECRET
+- [x] **Verified 2026-09-28**, from outside, after the owner applied the above:
+      sign-in without a CAPTCHA token → `400 captcha_failed`; a 7-character
+      password → `422 weak_password` (minimum now 8); every schema.sql rule
+      rejects its violation directly through PostgREST, while the allowed profile
+      columns and every API path still work. Secure password change is not
+      exposed by the API, so it is set but not independently confirmed
+- [-] **Leaked-password protection** is a paid-plan feature. The 8-character
+      minimum and CAPTCHA cover much of the same risk
+- [x] **Enable CAPTCHA** (Auth → Attack Protection → Turnstile, paste the SECRET
       key). The site key is already wired into /login. There is no per-account
       lockout otherwise; 15 wrong passwords in a row were all accepted as attempts
 - [ ] **Click through the app yourself.** Every check so far has been at the
