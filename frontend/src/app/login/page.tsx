@@ -1,9 +1,10 @@
 'use client';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { sameSitePath } from '@/lib/url';
+import { Turnstile, TURNSTILE_SITE_KEY, type TurnstileHandle } from '@/components/Turnstile';
 import styles from './login.module.css';
 
 function LoginForm() {
@@ -17,6 +18,12 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  // Supabase's CAPTCHA protection rejects email sign-in, sign-up, reset and
+  // resend without this. Tokens are single-use, so each call spends one and
+  // the widget is reset for the next.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captcha = useRef<TurnstileHandle>(null);
+  const captchaPending = Boolean(TURNSTILE_SITE_KEY) && !captchaToken;
   // Sign-in failed because the address was never confirmed. The resend button
   // on /account is unreachable for these users: confirmation is required to
   // sign in, so they can never get there.
@@ -71,14 +78,21 @@ function LoginForm() {
 
     try {
       if (tab === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: { captchaToken: captchaToken ?? undefined },
+        });
         if (error) throw error;
         router.replace(next);
       } else {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            captchaToken: captchaToken ?? undefined,
+          },
         });
         if (error) throw error;
         // With email confirmation off, Supabase returns a session immediately.
@@ -94,6 +108,7 @@ function LoginForm() {
       setUnconfirmed(/not confirmed/i.test(message));
     } finally {
       setLoading(false);
+      captcha.current?.reset();
     }
   };
 
@@ -105,9 +120,13 @@ function LoginForm() {
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        captchaToken: captchaToken ?? undefined,
+      },
     });
     setLoading(false);
+    captcha.current?.reset();
     // Same single message either way: the address is already known to exist
     // here (sign-in told us so), but the send quota must not become a signal.
     if (error) console.error('Resend confirmation failed:', error.message);
@@ -120,12 +139,15 @@ function LoginForm() {
     setMessage(null);
 
     if (!email.trim()) return setError('Enter your email address first, then choose Forgot password.');
+    if (captchaPending) return setError('Complete the check below first, then choose Forgot password.');
 
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
+      captchaToken: captchaToken ?? undefined,
     });
     setLoading(false);
+    captcha.current?.reset();
 
     /*
      * One message, always — including on rate-limit errors. Supabase only
@@ -270,7 +292,9 @@ function LoginForm() {
             </div>
           </div>
 
-          <button type="submit" className="btn btnPrimary" disabled={loading}>
+          <Turnstile ref={captcha} onToken={setCaptchaToken} />
+
+          <button type="submit" className="btn btnPrimary" disabled={loading || captchaPending}>
             {loading ? 'Please wait…' : tab === 'login' ? 'Sign in' : 'Create account'}
           </button>
         </form>

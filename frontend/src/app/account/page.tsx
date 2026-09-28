@@ -15,7 +15,7 @@ export default function AccountPage() {
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [busy, setBusy] = useState<'password' | 'resend' | 'signout' | 'delete' | null>(null);
+  const [busy, setBusy] = useState<'password' | 'signout' | 'delete' | null>(null);
   const [confirmEmail, setConfirmEmail] = useState('');
 
   /*
@@ -66,21 +66,6 @@ export default function AccountPage() {
     }
   };
 
-  const resendConfirmation = async () => {
-    if (!supabase || !user?.email) return;
-    setBusy('resend');
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: user.email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
-    setBusy(null);
-    showToast(
-      error ? 'Could not send it right now — try again in a minute.' : 'Confirmation email sent.',
-      error ? 'error' : 'success'
-    );
-  };
-
   const signOutEverywhere = async () => {
     if (!supabase) return;
     setBusy('signout');
@@ -125,23 +110,11 @@ export default function AccountPage() {
     );
   }
 
-  const unconfirmed = !user.email_confirmed_at;
-
   return (
     <div className="page">
       <div className="container-narrow">
         <h1 className="pageTitle">Your account</h1>
         <p className="pageSub">{user.email}</p>
-
-        {unconfirmed && (
-          <section className={`card ${styles.section}`}>
-            <h2>Confirm your email</h2>
-            <p>Your address is not confirmed yet. Some features stay locked until it is.</p>
-            <button className="btn btnGhost" onClick={resendConfirmation} disabled={busy === 'resend'}>
-              {busy === 'resend' ? 'Sending…' : 'Resend confirmation email'}
-            </button>
-          </section>
-        )}
 
         {recentSignIn === false && (
           <section className={`card ${styles.section}`} role="status">

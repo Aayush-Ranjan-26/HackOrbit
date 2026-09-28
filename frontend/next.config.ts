@@ -28,11 +28,14 @@ const apiOrigin = (() => {
 
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
+  // challenges.cloudflare.com: the Turnstile CAPTCHA on /login — a script, an
+  // iframe it draws the widget in, and the verification calls it makes.
+  `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com${isProd ? '' : " 'unsafe-eval'"}`,
+  'frame-src https://challenges.cloudflare.com',
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: https:",
-  `connect-src 'self' https://*.supabase.co ${apiOrigin}`,
+  `connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com ${apiOrigin}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

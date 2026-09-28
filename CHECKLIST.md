@@ -351,8 +351,9 @@ Checked and fine as designed:
 - [ ] **Supabase → Auth → Providers → Email → Secure password change.** The
       only server-side fix for a stolen session changing the password. Needs
       custom SMTP first: the re-auth code goes out by email
-- [ ] **Enable CAPTCHA** (Auth → Attack Protection) — there is no per-account
-      lockout today; 15 wrong passwords in a row were all accepted as attempts
+- [ ] **Enable CAPTCHA** (Auth → Attack Protection → Turnstile, paste the SECRET
+      key). The site key is already wired into /login. There is no per-account
+      lockout otherwise; 15 wrong passwords in a row were all accepted as attempts
 - [ ] **Click through the app yourself.** Every check so far has been at the
       HTTP and data layer; no browser has driven it. Click handlers, hydration
       settling and CSS layout remain unverified
