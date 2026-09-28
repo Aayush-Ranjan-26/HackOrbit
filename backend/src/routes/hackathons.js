@@ -24,7 +24,9 @@ function sanitizeSearch(raw) {
 }
 
 function parsePagination(query) {
-  const page = Math.max(1, parseInt(query.page) || 1);
+  // Capped: a huge page overflowed the offset past Postgres' bigint range (a
+  // 500), and float error let `limit` slip past its own 50 cap.
+  const page = Math.min(10000, Math.max(1, parseInt(query.page) || 1));
   const limit = Math.min(50, Math.max(1, parseInt(query.limit) || 20));
   const from = (page - 1) * limit;
   return { page, limit, from, to: from + limit - 1 };
@@ -52,7 +54,11 @@ router.get('/', async (req, res, next) => {
     if (hackathon_type && ['online', 'offline', 'hybrid'].includes(hackathon_type)) {
       query = query.eq('hackathon_type', hackathon_type);
     }
-    if (prize_min !== undefined) query = query.gte('prize_value_inr', parseInt(prize_min) || 0);
+    if (prize_min !== undefined) {
+      // prize_value_inr is an INTEGER; anything past 2^31 - 1 was a 500.
+      const floor = Math.min(Math.max(parseInt(prize_min) || 0, 0), 2147483647);
+      query = query.gte('prize_value_inr', floor);
+    }
     // postgrest-js quotes ( and ) inside in.() but passes a bare " straight
     // through, so ?source=a"b reached Postgres as a parse error and 500'd.
     // Same metacharacter strip the domain filter already uses.
@@ -68,7 +74,10 @@ router.get('/', async (req, res, next) => {
     }
 
     const order = SORTS[sort] || SORTS.deadline_asc;
-    query = query.order(order.column, { ascending: order.ascending });
+    // Postgres sorts NULLs first on DESC, so a row with no prize figure would
+    // top "biggest prize". The scraper now clamps, but the sort must not depend
+    // on every row being clean.
+    query = query.order(order.column, { ascending: order.ascending, nullsFirst: false });
 
     const { data, error, count } = await query.range(from, to);
     if (error) {

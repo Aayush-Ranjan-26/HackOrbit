@@ -195,3 +195,57 @@ CREATE TRIGGER on_auth_user_created
 -- CREATE POLICY "banners_public_read"
 --   ON storage.objects FOR SELECT
 --   USING (bucket_id = 'hackathon-banners');
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Hardening — security review, 2026-09-28. Re-runnable.
+--
+-- The API already enforces everything below. But the anon key ships in the
+-- browser, and RLS lets a user write their OWN rows straight through PostgREST,
+-- past every check in the API. These make the database enforce it too. None of
+-- it is cross-tenant — RLS already holds that line — it stops a user corrupting
+-- or bloating their own rows on a shared production database.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- 1. Profile size caps. Direct PostgREST writes stored a 100,000-character
+--    display_name and a 2,000-element interests array. Same limits the API
+--    applies in buildProfileUpdate (20 interests of up to 60 characters).
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_len_chk;
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_len_chk CHECK (
+  char_length(coalesce(display_name, ''))                  <= 120 AND
+  char_length(coalesce(college, ''))                       <= 120 AND
+  char_length(coalesce(avatar_url, ''))                    <= 500 AND
+  coalesce(array_length(interests, 1), 0)                  <= 20  AND
+  char_length(coalesce(array_to_string(interests, ''), '')) <= 1200
+);
+
+-- 2. Which profile columns a user may change directly. `id` and `created_at`
+--    are left out — created_at was freely backdatable.
+--
+--    Note: `REVOKE UPDATE (id, created_at) ...` would do NOTHING here. Postgres
+--    privileges are additive, and a table-level UPDATE grant covers every
+--    column regardless of column-level revokes. So the table grant is replaced
+--    by an explicit column list. The API writes as service_role and the signup
+--    trigger is SECURITY DEFINER, so neither is affected.
+REVOKE UPDATE ON public.profiles FROM authenticated;
+GRANT UPDATE (display_name, college, year_of_study, avatar_url, interests,
+              experience, format_pref, team_pref, onboarding_complete, updated_at)
+  ON public.profiles TO authenticated;
+
+-- 3. A status is always one of the three. The CHECK allowed NULL, because a
+--    CHECK passes on NULL, and a direct write could set it.
+UPDATE public.saved_hackathons SET status = 'saved' WHERE status IS NULL;
+ALTER TABLE public.saved_hackathons ALTER COLUMN status SET NOT NULL;
+
+-- 4. A calendar entry requires the hackathon to be saved. This was enforced
+--    only by the API, and two statements in two routes could interleave into
+--    an orphaned calendar row. Now the row hangs off the saved row, so removing
+--    a saved hackathon takes its calendar entry with it.
+DELETE FROM public.calendar_events c
+ WHERE NOT EXISTS (
+   SELECT 1 FROM public.saved_hackathons s
+    WHERE s.user_id = c.user_id AND s.hackathon_id = c.hackathon_id
+ );
+ALTER TABLE public.calendar_events DROP CONSTRAINT IF EXISTS calendar_requires_saved;
+ALTER TABLE public.calendar_events ADD CONSTRAINT calendar_requires_saved
+  FOREIGN KEY (user_id, hackathon_id)
+  REFERENCES public.saved_hackathons (user_id, hackathon_id) ON DELETE CASCADE;

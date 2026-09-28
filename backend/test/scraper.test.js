@@ -9,7 +9,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy-service-role-key';
 
 const {
   parsePrizeAmount, mlhEventYear, mlhSeasons, mlhEventDates, toISO, stripHTML, isGenericSkill,
-  isHackathonTitle,
+  isHackathonTitle, isSafeUrl, isFuture, toInt,
 } =
   await import('../src/jobs/scraper.js');
 
@@ -228,5 +228,100 @@ describe('mlhEventYear July boundary', () => {
     assert.equal(mlhEventYear('sep', '2027'), '2026');
     assert.equal(mlhEventYear('jan', '2027'), '2027');
     assert.equal(mlhEventYear('jun', '2027'), '2027');
+  });
+});
+
+// ── Security review, round two. Each case is a defect that was present. ──
+
+describe('regexes that went quadratic on hostile text', () => {
+  // Scrapes run inside the API process, so a slow regex froze every request.
+  // These inputs took 46 s and 55 s before the fix.
+  test('stripHTML on a long run of "<" with no ">" is fast', () => {
+    const start = Date.now();
+    stripHTML('<'.repeat(400_000));
+    assert.ok(Date.now() - start < 1000, `took ${Date.now() - start}ms`);
+  });
+
+  test('parsePrizeAmount on a huge digit run is fast', () => {
+    const start = Date.now();
+    parsePrizeAmount('9'.repeat(400_000));
+    assert.ok(Date.now() - start < 1000, `took ${Date.now() - start}ms`);
+  });
+
+  test('the fixed stripHTML still strips normal markup', () => {
+    assert.equal(stripHTML('<p>a <b>b</b></p>'), 'a b');
+  });
+});
+
+describe('parsePrizeAmount no longer glues numbers together', () => {
+  // "1st 50000 2nd 30000" read as 150,000,230,000 — past the INTEGER column,
+  // which failed the whole source's upsert every hour.
+  // Largest, not first: "first" reads the 1 out of "1st".
+  test('takes the largest number in multi-number text', () => {
+    assert.equal(parsePrizeAmount('Prize: 1st 50000 2nd 30000'), 50000);
+    assert.equal(parsePrizeAmount('Top 10 teams win 5000'), 5000);
+  });
+});
+
+describe('toInt clamps values bound for INTEGER columns', () => {
+  test('past the int4 range is clamped, not passed through', () => {
+    assert.equal(toInt(3e9, 0), 2147483647);
+    assert.equal(toInt(1e25, 0), 2147483647);
+  });
+
+  // Infinity serialises to JSON null, and NULL sorts first on "biggest prize".
+  test('Infinity, NaN and negatives fall back', () => {
+    assert.equal(toInt(Infinity, 0), 0);
+    assert.equal(toInt(NaN, 0), 0);
+    assert.equal(toInt(-5000, 0), 0);
+  });
+
+  test('fractions are floored', () => {
+    assert.equal(toInt(1000.5, 0), 1000);
+  });
+});
+
+describe('isSafeUrl ties a link to its source', () => {
+  test('javascript: is still rejected', () => {
+    assert.equal(isSafeUrl('javascript:alert(1)', 'devpost'), false);
+    assert.equal(isSafeUrl('JAVASCRIPT:alert(1)', 'mlh'), false);
+  });
+
+  // Displays as devpost, navigates to evil.example.
+  test('embedded credentials are rejected', () => {
+    assert.equal(isSafeUrl('https://devpost.com@evil.example/login', 'devpost'), false);
+    assert.equal(isSafeUrl('https://user:pass@lahacks.com/', 'mlh'), false);
+  });
+
+  test("a source's link must stay on that source's domain", () => {
+    assert.equal(isSafeUrl('https://evil.example/', 'devpost'), false);
+    assert.equal(isSafeUrl('https://devpost.com.evil.example/', 'devpost'), false);
+    assert.equal(isSafeUrl('https://hackmit.devpost.com/', 'devpost'), true);
+    assert.equal(isSafeUrl('https://unstop.com/hackathons/x', 'unstop'), true);
+  });
+
+  // MLH links to ~80 different organiser sites, so it is scheme-checked only.
+  test('MLH may link to organiser sites', () => {
+    assert.equal(isSafeUrl('https://lahacks.com/', 'mlh'), true);
+  });
+});
+
+describe('isFuture has an upper bound', () => {
+  const inDays = (d) => new Date(Date.now() + d * 86_400_000).toISOString();
+
+  test('a normal upcoming deadline is future', () => {
+    assert.equal(isFuture(inDays(30)), true);
+    assert.equal(isFuture(inDays(540)), true); // Devpost "upcoming" runs ~18 months
+  });
+
+  // "Sep 7, 20260" either failed the batch or stored a row that never expired.
+  test('a typo-length year is rejected', () => {
+    assert.equal(isFuture(toISO('Sep 7, 20260')), false);
+    assert.equal(isFuture(inDays(365 * 4)), false);
+  });
+
+  test('past and missing deadlines are rejected', () => {
+    assert.equal(isFuture(inDays(-1)), false);
+    assert.equal(isFuture(null), false);
   });
 });

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.js';
+import { REAUTH_WINDOW_SECONDS, requireAuth, secondsSinceSignIn } from '../middleware/auth.js';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { buildProfileUpdate, getProfile } from '../lib/profile.js';
 import { assertHackathonId, openHackathons, sanitizeDomains } from '../lib/hackathons.js';
@@ -39,6 +39,10 @@ router.put('/profile', async (req, res, next) => {
       .select()
       .single();
 
+    // 23503 here means the auth user vanished mid-request: the account was
+    // deleted while this write was in flight. That is a signed-out caller, not
+    // a server fault, so it should not surface as a 500.
+    if (error?.code === '23503') throw new AppError('Sign in to continue', 401, 'UNAUTHENTICATED');
     if (error) throw dbError(error);
     res.json(data);
   } catch (err) {
@@ -75,7 +79,11 @@ router.post('/saved/:hackathon_id', async (req, res, next) => {
     const { data, error } = await supabaseAdmin
       .from('saved_hackathons')
       .upsert(
-        { user_id: req.user.id, hackathon_id: hackathonId(req), status: 'saved' },
+        // No `status` here. This upsert is a merge on conflict, so sending
+        // status: 'saved' reset an "applied" or "submitted" row back to "saved"
+        // whenever Save was clicked again — from a second tab, or before the
+        // library had loaded. A new row still gets DEFAULT 'saved'.
+        { user_id: req.user.id, hackathon_id: hackathonId(req) },
         { onConflict: 'user_id,hackathon_id' }
       )
       .select()
@@ -153,6 +161,17 @@ router.patch('/saved/:hackathon_id/status', async (req, res, next) => {
  */
 router.delete('/account', async (req, res, next) => {
   try {
+    /*
+     * Irreversible, so it needs a RECENT sign-in, enforced here rather than by
+     * the typed-email check in the browser, which a direct API call skips. A
+     * stolen session — XSS, a shared computer — could otherwise delete the
+     * account with one request. `amr` records the sign-in itself and does not
+     * move on refresh, so a session that has merely stayed alive does not pass.
+     */
+    if (secondsSinceSignIn(req.token) > REAUTH_WINDOW_SECONDS) {
+      throw new AppError('Sign in again to delete your account', 401, 'REAUTH_REQUIRED');
+    }
+
     const { error } = await supabaseAdmin.auth.admin.deleteUser(req.user.id);
     if (error) throw new AppError('Could not delete the account', 500, 'DELETE_FAILED');
     res.json({ deleted: true });
@@ -174,7 +193,10 @@ const daysUntil = (date) =>
 router.get('/recommendations', async (req, res, next) => {
   try {
     const profile = await getProfile(req.user.id);
-    const interests = profile.interests || [];
+    // RLS lets a user write their own profile directly through PostgREST, past
+    // buildProfileUpdate's checks, so a null element can reach here — and it
+    // crashed `.toLowerCase()` below with a 500.
+    const interests = (profile.interests || []).filter((x) => typeof x === 'string');
     const format = profile.format_pref;
     const limit = Math.min(20, Math.max(1, parseInt(req.query.limit) || 5));
 
@@ -275,6 +297,12 @@ router.post('/calendar/:hackathon_id', async (req, res, next) => {
       .select()
       .single();
 
+    // With the calendar_requires_saved FK in schema.sql, a concurrent unsave
+    // between the two statements above lands here. That is a conflict the
+    // caller can retry, not a server fault.
+    if (error?.code === '23503') {
+      throw new AppError('It was removed from your saved list — try again', 409, 'CONFLICT');
+    }
     if (error) throw dbError(error);
     res.json(data);
   } catch (err) {

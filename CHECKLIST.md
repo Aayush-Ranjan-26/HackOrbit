@@ -161,8 +161,9 @@ Authentication:
       new-user check — so a first-time Google user landed on `/explore` with an
       empty profile and was never sent to onboarding. Order reversed
 - [x] `/auth/reset` gated on *any* session, so a signed-in user could deep-link
-      to it and change the password with no re-auth. Now gated on a marker cookie
-      set only for `type=recovery`, spent once the password is saved.
+      to it and change the password with no re-auth. ~~Now gated on a marker
+      cookie~~ — **superseded in Phase 14:** the cookie was settable from the
+      console and protected nothing; replaced by a recent-sign-in check.
       **Known ceiling:** the code exchange still mints a real session — the
       recovery token *is* the session — so the email holder can reach the app
       without resetting. Closing that needs a server-side reset endpoint
@@ -241,6 +242,83 @@ Deployment:
 - [-] `/hackathon/[id]` serves the generic site title rather than per-hackathon
       metadata. Real SEO gap for a discovery product, but nothing is broken
 
+## Phase 14 — Security review (three parallel agents)
+
+Auth flows, live access-control testing with two accounts, and a code-level
+logic review. **Tenant isolation held on every path — through the API and
+directly against Supabase with the public anon key.** No cross-tenant read,
+write or delete; forged, `alg:none`, expired, anon-key and service-key tokens
+all 401; 30–50-request races left no duplicates; admin gates held against every
+path and method trick. What was found, and fixed:
+
+Stolen-session takeover:
+- [x] **Deleting the account took one bearer request.** The typed-email check was
+      browser-only. Now needs a sign-in within 10 minutes, enforced in the API
+      from the token's `amr` claim — verified live that a session whose sign-in
+      is 11 minutes old is refused even immediately after a token refresh, which
+      is exactly what a stolen, kept-alive session looks like
+- [x] **Changing the password needed no current password and no re-auth.**
+      Supabase then signs every other session out, so a stolen session locked the
+      owner out. Now gated on the same recent sign-in in the UI. **Server-side
+      this is only closable in the dashboard** — see Needs you
+- [x] The Phase 13 recovery marker cookie was settable from the console and
+      protected nothing. Removed; `/auth/reset` uses the recent-sign-in check
+
+Data integrity:
+- [x] **Clicking Save again reset "applied"/"submitted" back to "saved."** The
+      upsert is a merge on conflict and sent `status: 'saved'`. Reachable from a
+      second tab or before the library loaded
+- [x] One out-of-range, fractional or `Infinity` prize failed that source's
+      whole upsert — every hour, for as long as the listing existed. Prize text
+      with several numbers was concatenated into 150,000,230,000. Values are now
+      clamped where every source routes through, and the largest number is taken
+      (not the first — that reads the `1` out of `1st`, which the tests caught)
+- [x] `Infinity` serialises to JSON `null`, which Postgres sorts FIRST on
+      "biggest prize" — a hostile listing would have topped it as "₹∞"
+
+Denial of service:
+- [x] `stripHTML` and the prize regexes were quadratic. 400 KB of `<` took 46 s
+      and 400 K digits 55 s — and scrapes run inside the API process, so that
+      froze every request. Now under a millisecond; tests pin it
+- [x] Upstream response bodies are capped at 10 MB
+
+Smaller:
+- [x] Scraped links are tied to their source's domain (MLH excepted — it links
+      to ~80 organiser sites) and may not embed credentials
+      (`https://devpost.com@evil.example`). Devfolio slugs must be a plain DNS
+      label, since they are interpolated into a hostname
+- [x] `/auth/callback` forwarded `?error_description=` verbatim — attacker text
+      on the trusted login page. Mapped to fixed messages
+- [x] A null in `interests`, writable directly via PostgREST, 500'd
+      recommendations
+- [x] `page`, `prize_min` past the int/bigint range were 500s; five-digit years
+      never expired; `INR_PER_USD` was unvalidated; a malformed upstream element
+      threw away the whole source
+- [x] A write racing account deletion was a 500; now 401
+- [x] The nav's Sign out signed you out of **every device** (supabase-js
+      defaults to `scope: 'global'`). Now this device only
+- [x] A placeholder domain anyone could register was in the CORS allowlist
+
+Database (in `schema.sql`, re-runnable — **needs running**, see Needs you):
+- [x] Profile length caps as a CHECK — direct PostgREST writes stored a
+      100,000-character name and 2,000 interests
+- [x] Profile `id`/`created_at` no longer user-updatable. A column-level
+      `REVOKE` would have been a no-op under Supabase's table-level grant, so the
+      grant is replaced by a column list
+- [x] `status` NOT NULL; a calendar entry now requires a saved row (FK)
+
+Checked and fine as designed:
+- [-] Status moving backwards or skipping steps — it is a personal tracker and
+      nothing depends on the order
+- [-] Login response timing distinguishes registered addresses (259 ms vs
+      195 ms). This is GoTrue's behaviour; no app code can change it. CAPTCHA
+      makes probing expensive — see Needs you
+- [-] A cross-process scrape lease. Upserts are idempotent, so two concurrent
+      runs cost load, not correctness; only matters with multiple replicas
+
+- [x] 73 backend tests (was 54), 15 live checks against the running app, all
+      passing. Every disposable account deleted; `hackathons` untouched
+
 ## Needs you
 
 - [x] Supabase project created and `schema.sql` run — confirmed against real
@@ -267,6 +345,14 @@ Deployment:
       signups are open (Auth → Settings). Neither is reachable from code
 - [ ] `docker build` has still never been executed — no Docker daemon on this
       machine. The Dockerfiles are written but unverified
+- [ ] **Run the Phase 14 hardening in `backend/supabase/schema.sql`** (the
+      block at the end) in the Supabase SQL editor. It cannot be applied from
+      code — PostgREST has no DDL endpoint. Your current data violates none of it
+- [ ] **Supabase → Auth → Providers → Email → Secure password change.** The
+      only server-side fix for a stolen session changing the password. Needs
+      custom SMTP first: the re-auth code goes out by email
+- [ ] **Enable CAPTCHA** (Auth → Attack Protection) — there is no per-account
+      lockout today; 15 wrong passwords in a row were all accepted as attempts
 - [ ] **Click through the app yourself.** Every check so far has been at the
       HTTP and data layer; no browser has driven it. Click handlers, hydration
       settling and CSS layout remain unverified

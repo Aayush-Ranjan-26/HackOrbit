@@ -4,7 +4,8 @@
 export function stripHTML(str?: string | null): string {
   if (!str) return '';
   return str
-    .replace(/<[^>]*>/g, '')
+    // `[^<>]` not `[^>]`: a run of `<` with no `>` made the old class quadratic.
+    .replace(/<[^<>]*>/g, '')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')

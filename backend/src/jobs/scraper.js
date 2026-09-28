@@ -5,7 +5,10 @@ import { supabaseAdmin } from '../lib/supabase.js';
 // FX drifts. Override without a code change when the rate moves enough to matter.
 // ponytail: single static rate; swap for a daily FX fetch if prize ranking across
 // currencies ever becomes a headline feature.
-const INR_PER_USD = Number(process.env.INR_PER_USD) || 88;
+// A negative or Infinity rate turned every USD prize negative or into a JSON
+// null that sorted first under "biggest prize". Anything implausible falls back.
+const FX = Number(process.env.INR_PER_USD);
+const INR_PER_USD = FX > 1 && FX < 1000 ? FX : 88;
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -20,6 +23,9 @@ async function fetchWithRetry(url, options = {}, retries = 3, baseDelay = 2000) 
         method: options.method || 'GET',
         data: options.data,
         timeout: 20000,
+        // An upstream is untrusted input. Without a cap, one compromised or broken
+        // source could make us buffer an unbounded body inside the API process.
+        maxContentLength: 10 * 1024 * 1024,
         headers: { 'User-Agent': UA, ...options.headers },
       });
       return response.data;
@@ -39,7 +45,10 @@ async function fetchWithRetry(url, options = {}, retries = 3, baseDelay = 2000) 
 export function stripHTML(str) {
   if (!str || typeof str !== 'string') return str;
   return str
-    .replace(/<[^>]*>/g, '')
+    // `[^<>]`, not `[^>]`: with a run of `<` and no `>`, the old class retried
+    // from every `<` and went quadratic — 400 KB took 46 s, and scrapes run
+    // inside the API process, so that froze every request for as long.
+    .replace(/<[^<>]*>/g, '')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
@@ -59,7 +68,9 @@ export function parsePrizeAmount(raw) {
   if (raw == null) return 0;
   if (typeof raw === 'number') return Number.isFinite(raw) ? Math.floor(raw) : 0;
 
-  const text = stripHTML(String(raw)).toLowerCase().replace(/,/g, '');
+  // Prize text is a short string. Capping it bounds the unanchored regexes
+  // below, which are quadratic on a long run of digits (400 K digits: 55 s).
+  const text = stripHTML(String(raw).slice(0, 500)).toLowerCase().replace(/,/g, '');
   const MULTIPLIERS = [
     // The plural matters: "10 Lakhs" without the `s?` fell through to the digit
     // strip and read as 10 — the exact 100,000x undercount this function exists
@@ -83,9 +94,13 @@ export function parsePrizeAmount(raw) {
   }
   if (best > 0) return best;
 
-  const digits = text.replace(/[^0-9.]/g, '');
-  const num = parseFloat(digits);
-  return isNaN(num) ? 0 : Math.floor(num);
+  // The LARGEST number, not every digit glued together: "1st 50000 2nd 30000"
+  // used to read as 150,000,230,000 — past the INTEGER column's range, which
+  // failed the whole source's upsert every hour the listing existed. Not the
+  // first number either: that reads the 1 out of "1st". Largest matches what
+  // the multiplier path above already does, and upsert clamps the range.
+  const nums = (text.match(/\d+(?:\.\d+)?/g) || []).map(Number).filter(Number.isFinite);
+  return nums.length ? Math.floor(Math.max(...nums)) : 0;
 }
 
 /**
@@ -131,8 +146,14 @@ export function toISO(value) {
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
 
-function isFuture(iso) {
-  return Boolean(iso) && new Date(iso).getTime() > Date.now();
+// Upper bound as well as lower: "Sep 7, 20260" parses to year 20260, which
+// either failed the batch or stored a row the expiry sweep would never reach.
+// Three years clears Devpost's furthest real "upcoming" deadlines (~18 months).
+const MAX_HORIZON_MS = 3 * 365 * 24 * 60 * 60 * 1000;
+
+export function isFuture(iso) {
+  const t = iso ? new Date(iso).getTime() : NaN;
+  return t > Date.now() && t < Date.now() + MAX_HORIZON_MS;
 }
 
 /**
@@ -140,23 +161,54 @@ function isFuture(iso) {
  * an <a href>. A javascript: URI there would execute in our origin on click,
  * so anything that is not http(s) is dropped rather than stored.
  */
-function isSafeUrl(value) {
+// Where each source's links may point. MLH is absent on purpose: its cards
+// link straight to ~80 different organiser sites, so it gets the scheme and
+// credential checks only.
+const SOURCE_HOSTS = {
+  devpost: 'devpost.com',
+  unstop: 'unstop.com',
+  devfolio: 'devfolio.co',
+  hackerearth: 'hackerearth.com',
+};
+
+export function isSafeUrl(value, source) {
   try {
-    return ['http:', 'https:'].includes(new URL(String(value)).protocol);
+    const u = new URL(String(value));
+    if (!['http:', 'https:'].includes(u.protocol)) return false;
+    // https://devpost.com@evil.example/ displays as devpost but goes to evil.
+    if (u.username || u.password) return false;
+    const home = SOURCE_HOSTS[source];
+    // A trusted-looking card's Register link could otherwise point anywhere.
+    return !home || u.hostname === home || u.hostname.endsWith(`.${home}`);
   } catch {
     return false;
   }
 }
+
+// Upstream numbers land in INTEGER columns. One value past 2^31 - 1, a
+// fraction, or an Infinity (which JSON serialises as null, and which then sorts
+// FIRST under "biggest prize") failed or poisoned the whole source's upsert.
+const INT_MAX = 2147483647;
+export const toInt = (n, fallback) =>
+  Number.isFinite(n) && n >= 0 ? Math.min(Math.floor(n), INT_MAX) : fallback;
 
 async function upsertHackathons(records) {
   if (!records.length) return 0;
   // Last write wins within a batch — Postgres rejects an upsert that touches the
   // same conflict key twice in one statement.
   const safe = records.filter((r) => {
-    if (isSafeUrl(r.source_url)) return true;
+    if (isSafeUrl(r.source_url, r.source)) return true;
     console.warn(`[scraper] dropped ${r.source} record with unsafe source_url`);
     return false;
   });
+
+  // Clamp here, once, rather than in each adapter: every source routes through.
+  for (const r of safe) {
+    r.prize_value_inr = toInt(r.prize_value_inr, 0);
+    if (!r.prize_value_inr) r.prize_pool = null;
+    if (r.team_size_min != null) r.team_size_min = toInt(r.team_size_min, 1);
+    if (r.team_size_max != null) r.team_size_max = toInt(r.team_size_max, 4);
+  }
   const deduped = [...new Map(safe.map((r) => [`${r.source}|${r.source_url}`, r])).values()];
 
   const { data, error } = await supabaseAdmin
@@ -240,7 +292,7 @@ async function scrapeDevpost() {
         start_date,
         // Devpost's submission window closes when the hackathon does.
         submission_deadline: deadline,
-        domains: (h.themes || []).map((t) => t.name).filter(Boolean),
+        domains: (h.themes || []).map((t) => t?.name).filter(Boolean),
         is_active: true,
         updated_at: new Date().toISOString(),
       });
@@ -381,7 +433,7 @@ async function scrapeHackerEarth() {
     records.push({
       title: stripHTML(h.title),
       source: 'hackerearth',
-      source_url: h.url.split('?')[0],
+      source_url: String(h.url).split('?')[0],
       banner_url: h.thumbnail || null,
       description: stripHTML(h.description) || null,
       hackathon_type: 'online',
@@ -423,6 +475,9 @@ async function scrapeDevfolio() {
 
   for (const h of open) {
     const slug = h.slug || h.uuid;
+    // The slug is interpolated into a hostname. "evil.example/?x=" would make
+    // https://evil.example/?x=.devfolio.co — so only a plain DNS label is let in.
+    if (!/^[a-z0-9-]{1,63}$/i.test(String(slug))) continue;
     if (!slug) continue;
 
     // ends_at is when the EVENT ends; registration closes earlier, at reg_ends_at.
@@ -519,7 +574,7 @@ async function scrapeUnstopFeed(feed, records) {
       if (!isFuture(deadline)) continue;
 
       // prizes_amount no longer exists — the payout lives in a prizes[] array.
-      const prizes = Array.isArray(h.prizes) ? h.prizes : [];
+      const prizes = Array.isArray(h.prizes) ? h.prizes.filter(Boolean) : [];
       const cash = prizes.reduce((sum, p) => sum + (Number(p.cash) || 0), 0);
       const nonRupee = prizes.find((p) => p.currencyCode && p.currencyCode !== 'INR');
       const prizeInr = nonRupee ? Math.floor(cash * INR_PER_USD) : cash;
@@ -533,7 +588,7 @@ async function scrapeUnstopFeed(feed, records) {
       const skills = [
         ...new Set(
           (h.required_skills || [])
-            .map((s) => s.skill_name || s.skill)
+            .map((s) => s?.skill_name || s?.skill)
             .filter((name) => name && !isGenericSkill(name))
         ),
       ].slice(0, 8);

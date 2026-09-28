@@ -2,20 +2,17 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { REAUTH_WINDOW_SECONDS, secondsSinceSignIn, supabase } from '@/lib/supabase';
 import styles from '../../login/login.module.css';
 
-const RECOVERY_COOKIE = 'hackorbit-recovery';
-
 /**
- * Reached only via a recovery link, which /auth/callback has already exchanged
- * for a session. Without that session there is nothing to update, so the page
- * says so rather than showing a form that cannot work.
+ * Reached from a recovery link, which /auth/callback has already exchanged for
+ * a session — a brand-new sign-in, so it passes the recency check below.
  *
- * A session alone is NOT proof of recovery — every signed-in user has one, so
- * gating on it let anyone deep-link here and change the password with no
- * re-auth. The marker cookie /auth/callback sets for `type=recovery` is what
- * actually distinguishes the two, and it is cleared once the password is saved.
+ * This used to gate on a marker cookie. It was readable and settable by any
+ * script (`document.cookie = 'hackorbit-recovery=1'`), so it protected nothing.
+ * A recent sign-in is what actually separates "just followed a reset link" from
+ * "an old session someone else is sitting at".
  */
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -31,13 +28,7 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     if (!supabase) return;
-    const fromRecoveryLink = document.cookie
-      .split('; ')
-      .some((c) => c.startsWith(`${RECOVERY_COOKIE}=1`));
-
-    supabase.auth
-      .getSession()
-      .then(({ data }) => setReady(data.session && fromRecoveryLink ? 'ok' : 'no-session'));
+    secondsSinceSignIn().then((age) => setReady(age <= REAUTH_WINDOW_SECONDS ? 'ok' : 'no-session'));
   }, []);
 
   const submit = async (e: React.FormEvent) => {
@@ -52,9 +43,6 @@ export default function ResetPasswordPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-
-      // Spend the marker so the link cannot be reused to reach this form again.
-      document.cookie = `${RECOVERY_COOKIE}=; Max-Age=0; path=/`;
 
       // Anyone holding an old session — including whoever forced the reset —
       // is signed out. The user re-authenticates with the new password.

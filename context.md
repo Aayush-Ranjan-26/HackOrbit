@@ -189,10 +189,23 @@ Password reset *is* built — `/login` requests the link and `/auth/reset`
 completes it. One caveat worth knowing before changing it: exchanging a recovery
 code mints a full session, because Supabase's recovery token *is* the session
 and `updateUser()` needs it. Whoever holds the reset email can therefore reach
-the app without setting a new password. `/auth/reset` gates on a short-lived
-marker cookie set by `/auth/callback`, so a plain session is not enough to reach
-the form, but closing the underlying gap needs a server-side reset endpoint
-using the service-role key. Admin is guarded by `ADMIN_SECRET_KEY`, compared in
+the app without setting a new password. Closing that needs a server-side reset
+endpoint using the service-role key.
+
+**Sensitive actions need a recent sign-in.** Changing the password, completing a
+reset, and deleting the account all require a sign-in within the last ten
+minutes, read from the token's `amr` claim. Not `iat`: a refresh issues a new
+token with a fresh `iat` every hour, so a stolen session that keeps refreshing
+would always look recent, while `amr` records the sign-in itself and does not
+move. Account deletion enforces this in the API (`REAUTH_REQUIRED`). Password
+changes go straight from the browser to Supabase, never through our API, so
+there it gates the UI only — the server-side guarantee is Supabase's "Secure
+password change" setting, which is a dashboard switch.
+
+(`/auth/reset` briefly gated on a marker cookie instead. It was readable and
+settable by any script, so it protected nothing, and was removed.)
+
+Admin is guarded by `ADMIN_SECRET_KEY`, compared in
 constant time and never exposed to the browser — the frontend reaches it only
 through the server-side `/api/admin` proxy.
 

@@ -48,7 +48,9 @@ export function useUser() {
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabase?.auth.signOut();
+    // supabase-js defaults to scope 'global', so the nav button was signing the
+    // user out of every device. /account has an explicit "everywhere" for that.
+    await supabase?.auth.signOut({ scope: 'local' });
   }, []);
 
   return { user: state.user, loading: !state.ready, signOut, configured: isSupabaseConfigured };

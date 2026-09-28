@@ -101,10 +101,11 @@ same way.
    would pick them up; it never did, and the user landed signed-out with no
    explanation. It now reports the failure. `?error=` from an expired or reused
    link is read and shown too.
-3. Recovery links are routed to `/auth/reset`, which gates on a marker cookie
-   rather than on merely having a session. Note the ceiling: the code exchange
-   necessarily creates a real session, so whoever holds the email can reach the
-   app without changing the password (see `context.md` §4).
+3. Recovery links are routed to `/auth/reset`. Password changes, resets and
+   account deletion all require a sign-in from the last ten minutes, read from
+   the token's `amr` claim; deletion enforces it server-side. Note the ceiling:
+   the code exchange necessarily creates a real session, so whoever holds the
+   email can reach the app without changing the password (see `context.md` §4).
 4. The frontend attaches the access token as a bearer header on every API call.
 5. `backend/src/middleware/auth.js` validates it with
    `supabaseAdmin.auth.getUser(token)` — a real server-side check, not a local

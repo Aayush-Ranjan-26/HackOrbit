@@ -1,10 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/lib/hooks';
-import { deleteAccount } from '@/lib/api';
-import { supabase } from '@/lib/supabase';
+import { ApiError, deleteAccount } from '@/lib/api';
+import { REAUTH_WINDOW_SECONDS, secondsSinceSignIn, supabase } from '@/lib/supabase';
 import { useToast } from '@/components/Toast';
 import styles from './account.module.css';
 
@@ -18,9 +18,35 @@ export default function AccountPage() {
   const [busy, setBusy] = useState<'password' | 'resend' | 'signout' | 'delete' | null>(null);
   const [confirmEmail, setConfirmEmail] = useState('');
 
+  /*
+   * Changing the password and deleting the account both need a sign-in from
+   * the last ten minutes. Without it, anyone holding a session — a shared
+   * computer, a stolen token — could set a new password, which Supabase
+   * answers by signing the owner out everywhere, or delete the account with
+   * one click. The API enforces this for deletion; for the password it is
+   * enforced here, and server-side only by Supabase's "Secure password
+   * change" setting, since that request never touches our API.
+   */
+  const [recentSignIn, setRecentSignIn] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    secondsSinceSignIn().then((age) => setRecentSignIn(age <= REAUTH_WINDOW_SECONDS));
+  }, [user]);
+
+  // Sign out here only, then come back: a fresh sign-in resets the clock.
+  const reauthenticate = async () => {
+    await signOut();
+    router.replace('/login?next=/account');
+  };
+
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
+    // Re-check at submit: the page may have sat open past the window.
+    if ((await secondsSinceSignIn()) > REAUTH_WINDOW_SECONDS) {
+      setRecentSignIn(false);
+      return showToast('Sign in again to change your password.', 'error');
+    }
     if (password !== confirm) return showToast('Those two passwords do not match.', 'error');
     if (password.length < 8) return showToast('Use at least 8 characters.', 'error');
 
@@ -68,8 +94,13 @@ export default function AccountPage() {
       await deleteAccount();
       await signOut();
       router.replace('/login?deleted=1');
-    } catch {
-      showToast('Could not delete the account. Try again.', 'error');
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'REAUTH_REQUIRED') {
+        setRecentSignIn(false);
+        showToast('Sign in again to delete your account.', 'error');
+      } else {
+        showToast('Could not delete the account. Try again.', 'error');
+      }
       setBusy(null);
     }
   };
@@ -112,6 +143,19 @@ export default function AccountPage() {
           </section>
         )}
 
+        {recentSignIn === false && (
+          <section className={`card ${styles.section}`} role="status">
+            <h2>Confirm it&apos;s you</h2>
+            <p>
+              Changing your password or deleting your account needs a sign-in from the
+              last ten minutes.
+            </p>
+            <button className="btn btnPrimary" onClick={reauthenticate}>
+              Sign in again
+            </button>
+          </section>
+        )}
+
         <section className={`card ${styles.section}`}>
           <h2>Change password</h2>
           <form onSubmit={changePassword} className={styles.form}>
@@ -142,7 +186,7 @@ export default function AccountPage() {
                 autoComplete="new-password"
               />
             </div>
-            <button type="submit" className="btn btnPrimary" disabled={busy === 'password'}>
+            <button type="submit" className="btn btnPrimary" disabled={busy === 'password' || !recentSignIn}>
               {busy === 'password' ? 'Saving…' : 'Update password'}
             </button>
           </form>
@@ -181,6 +225,7 @@ export default function AccountPage() {
             // the delete, never permit one — the server scopes it to the caller's token.
             disabled={
               busy === 'delete' ||
+              !recentSignIn ||
               confirmEmail.trim().toLowerCase() !== (user.email ?? '').toLowerCase()
             }
           >

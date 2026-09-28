@@ -29,8 +29,18 @@ export async function GET(request: Request) {
    * with no ?code= at all. Reading only `code` sent those users to /onboarding
    * with a bare "Sign in first" and threw the reason away.
    */
-  const error = url.searchParams.get('error_description') || url.searchParams.get('error');
-  if (error) return fail(error);
+  //
+  // The reason is mapped to our own wording, never passed through: forwarding
+  // ?error_description= let anyone put arbitrary text — "Your account is
+  // suspended, call +1-555-…" — on the login page of a trusted origin.
+  const errorCode = url.searchParams.get('error_code') || url.searchParams.get('error');
+  if (errorCode) {
+    const known: Record<string, string> = {
+      otp_expired: 'That link has expired. Request a new one.',
+      access_denied: 'That link is no longer valid. Request a new one.',
+    };
+    return fail(known[errorCode] ?? 'That sign-in link did not work. Please try again.');
+  }
 
   /*
    * No code and no error means the tokens were in the URL *fragment* (an
@@ -74,23 +84,15 @@ export async function GET(request: Request) {
   }
 
   // A recovery link must land on the page that sets a new password, never on
-  // the app. The marker is what /auth/reset gates on: a plain session is not
-  // proof of recovery, since every signed-in user has one.
+  // the app. The session it just minted is a fresh sign-in, so /auth/reset's
+  // recent-sign-in check lets it through.
   //
   // ponytail: the exchange above unavoidably mints a real session — Supabase's
   // recovery token *is* the session, and updateUser() needs it — so whoever
   // holds the email can reach the app without changing the password. Closing
   // that needs a server-side reset endpoint using the service-role key.
   if (type === 'recovery') {
-    const response = NextResponse.redirect(new URL('/auth/reset', url.origin));
-    response.cookies.set('hackorbit-recovery', '1', {
-      httpOnly: false, // the reset page is a client component and reads it
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 900,
-    });
-    return response;
+    return NextResponse.redirect(new URL('/auth/reset', url.origin));
   }
 
   /*
