@@ -39,3 +39,6 @@ frontend/.next/
 HANDOFF.md
 CLAUDE.md
 context.md
+
+# Local Claude Code state
+/.claude/
