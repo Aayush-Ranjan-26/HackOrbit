@@ -5,9 +5,9 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
-    "scrape": "node src/jobs/scraper.js",
+    "dev": "nodemon --exec \"node --env-file=.env\" src/index.js",
+    "start": "node --env-file=.env src/index.js",
+    "scrape": "node --env-file=.env src/jobs/scraper.js",
     "test": "node --test",
     "lint": "eslint ."
   },
@@ -23,7 +23,6 @@
     "axios": "^1.8.4",
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "express-rate-limit": "^8.7.0",
     "node-cron": "^4.6.0"

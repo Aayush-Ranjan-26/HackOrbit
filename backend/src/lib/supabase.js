@@ -1,9 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
 
-// `npm run scrape` runs jobs/scraper.js directly, so load .env here too.
-dotenv.config();
-
+// Env is loaded by the npm scripts (`node --env-file=.env ...`), not here.
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in backend/.env');
 }
