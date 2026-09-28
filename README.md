@@ -79,7 +79,7 @@ args in `docker-compose.yml` rather than at runtime.
 | `ALLOWED_ORIGINS` | no | Comma-separated CORS allowlist |
 | `ADMIN_SECRET_KEY` | no | Unset ⇒ `/admin/*` returns 503. No default by design |
 | `TRUST_PROXY` | no | `true` only when a reverse proxy really is in front. Otherwise a caller can forge `X-Forwarded-For` to reset their own rate limit |
-| `ENABLE_CRON` | no | `true` runs the 6-hourly scrape in this process |
+| `ENABLE_CRON` | no | `true` runs the hourly scrape in this process |
 | `INR_PER_USD` | no | FX used to normalise Devpost prizes (default 88) |
 
 ### `frontend/.env.local`
@@ -178,8 +178,6 @@ GET  /admin/stats
 
 ## Documentation
 
-- [`context.md`](context.md) — architecture, data flow, the scraper's quirks,
-  the security model, and the decisions worth knowing before changing anything.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to work on it.
 - [`CHECKLIST.md`](CHECKLIST.md) — what has been done and what is left.
 

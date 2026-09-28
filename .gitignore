@@ -34,3 +34,8 @@ backend/node_modules/
 frontend/.env
 frontend/node_modules/
 frontend/.next/
+
+# Internal notes, kept local only
+HANDOFF.md
+CLAUDE.md
+context.md

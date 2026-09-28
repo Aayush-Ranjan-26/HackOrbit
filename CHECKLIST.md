@@ -80,7 +80,7 @@
 - [x] Multi-stage Dockerfiles, non-root, healthcheck; `docker-compose.yml`
 - [x] `output: 'standalone'` for a slim frontend image — verified serving locally
 - [x] `LICENSE` (MIT), `CONTRIBUTING.md`, `.editorconfig`, `.gitattributes`
-- [x] `README.md` and `context.md` rewritten to match the code
+- [x] `README.md` rewritten to match the code
 
 ## Phase 9 — Verification
 - [x] `npm test` green; `npm run lint` clean both apps; `npm run build` clean
