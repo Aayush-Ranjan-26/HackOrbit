@@ -17,6 +17,8 @@ const errorMessage = (err: unknown) =>
       : err.message
     : 'Something went wrong';
 
+const AUTH_SESSION_TIMEOUT_MS = 5000;
+
 // Loading is derived by comparing the key of the data we hold against the key we
 // want. Calling setState synchronously in an effect body triggers cascading
 // renders, which React 19 rejects outright.
@@ -32,17 +34,30 @@ export function useUser() {
   useEffect(() => {
     if (!supabase) return;
     let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!cancelled) setState({ user: data.session?.user ?? null, ready: true });
-    });
+    const resolveSignedOut = () => {
+      if (!cancelled) setState({ user: null, ready: true });
+    };
+
+    void supabase.auth.getSession()
+      .then(({ data }) => {
+        if (!cancelled) setState({ user: data.session?.user ?? null, ready: true });
+      })
+      .catch(resolveSignedOut)
+      .finally(() => {
+        if (timeoutId !== null) clearTimeout(timeoutId);
+      });
+
+    timeoutId = setTimeout(resolveSignedOut, AUTH_SESSION_TIMEOUT_MS);
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setState({ user: session?.user ?? null, ready: true });
+      if (!cancelled) setState({ user: session?.user ?? null, ready: true });
     });
 
     return () => {
       cancelled = true;
+      if (timeoutId !== null) clearTimeout(timeoutId);
       sub.subscription.unsubscribe();
     };
   }, []);
