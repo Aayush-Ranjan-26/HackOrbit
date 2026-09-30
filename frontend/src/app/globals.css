@@ -1,41 +1,61 @@
-/* Flat colours only, one accent: the sun. */
 :root {
-  --void: #10151f;
-  --surface: #1a2130;
-  --shadow-dark: #0a0e15;
-  --shadow-light: #242c3d;
-  --text: #e6e9ef;
-  --muted: #8b94a7;   /* 6.0:1 on void, 5.3:1 on surface */
-  --orbit: #2a3345;
-  --sun: #f2b544;
-
-  /* Neumorphism, used sparingly: primary buttons, inputs, a few panels. */
-  --raised: 6px 6px 14px var(--shadow-dark), -6px -6px 14px var(--shadow-light);
-  --raised-sm: 3px 3px 8px var(--shadow-dark), -3px -3px 8px var(--shadow-light);
-  --pressed: inset 3px 3px 7px var(--shadow-dark), inset -3px -3px 7px var(--shadow-light);
-
-  /* Older names, kept so every page adopts the palette without a rewrite. */
-  --bg: var(--void);
-  --surface-raised: #202839;
-  --text-muted: var(--muted);
-  --text-faint: var(--muted);
-  --primary: var(--sun);
-  --primary-bright: var(--sun);
-  --primary-dim: rgb(242 181 68 / 0.1);
-  --primary-border: rgb(242 181 68 / 0.35);
-  --border: rgb(230 233 239 / 0.08);
-  --border-strong: rgb(230 233 239 / 0.2);
-
-  --success: #86efac;
-  --warning: #fcd34d;
-  --danger: #fca5a5;
-
-  --font-sans: var(--font-plex), system-ui, -apple-system, sans-serif;
-  --font-display: var(--font-unbounded), var(--font-sans);
-  --container-max: 1240px;
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
+  --surface-lowest: #0a0e18;
+  --surface: #0f131d;
+  --surface-low: #171b26;
+  --surface-container: #1c1f2a;
+  --surface-high: #262a35;
+  --surface-highest: #313540;
+  --on-surface: #dfe2f1;
+  --on-surface-variant: #d8c3ad;
+  --primary: #ffc174;
+  --primary-container: #f59e0b;
+  --on-primary-container: #613b00;
+  --secondary: #4cd7f6;
+  --secondary-container: #03b5d3;
+  --tertiary: #56e5a9;
+  --tertiary-container: #30c88f;
+  --error: #ffb4ab;
+  --error-container: #93000a;
+  --outline: #a08e7a;
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2.5rem;
+  --page-margin: 2rem;
+  --page-margin-sm: 1rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 2rem;
+  --radius-xl: 3rem;
+  --shadow-header: 0 4px 24px rgb(0 0 0 / 0.6);
+  --shadow-card: 8px 8px 20px rgb(0 0 0 / 0.6), -4px -4px 12px rgb(255 255 255 / 0.02);
+  --shadow-primary: 0 4px 28px rgb(245 158 11 / 0.45), inset 0 1px 1px rgb(255 255 255 / 0.4);
+  --shadow-glass: 0 12px 36px rgb(0 0 0 / 0.65), inset 0 1px 1px rgb(255 255 255 / 0.06);
+  --shadow-inset: inset 3px 3px 6px rgb(0 0 0 / 0.7), inset -2px -2px 4px rgb(255 255 255 / 0.02);
+  --void: var(--surface-lowest);
+  --bg: var(--surface-lowest);
+  --surface-raised: var(--surface-high);
+  --text: var(--on-surface);
+  --muted: var(--on-surface-variant);
+  --text-muted: var(--on-surface-variant);
+  --text-faint: var(--on-surface-variant);
+  --sun: var(--primary-container);
+  --orbit: var(--surface-highest);
+  --primary-bright: var(--primary);
+  --primary-dim: rgb(245 158 11 / 0.14);
+  --primary-border: rgb(255 193 116 / 0.38);
+  --border: rgb(216 195 173 / 0.15);
+  --border-strong: rgb(216 195 173 / 0.32);
+  --success: var(--tertiary);
+  --warning: var(--primary);
+  --danger: var(--error);
+  --raised: var(--shadow-card);
+  --raised-sm: var(--shadow-card);
+  --pressed: var(--shadow-inset);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-jakarta), var(--font-sans);
+  --container-max: 90rem;
 }
 
 * { box-sizing: border-box; }
@@ -43,214 +63,224 @@
 html { scroll-behavior: smooth; }
 
 body {
-  font-family: var(--font-sans);
-  background: var(--bg);
-  color: var(--text);
   margin: 0;
+  min-width: 20rem;
+  background: var(--surface-lowest);
+  color: var(--on-surface);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Starfield behind every page: flat dots in tiled SVGs of co-prime sizes, so the
-   repeat does not show, plus a sparse layer that twinkles very slowly. */
-body::before,
-body::after {
+body::before {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
+  background-image: radial-gradient(circle at 1px 1px, rgb(49 53 64 / 0.25) 1px, transparent 0);
+  background-size: 24px 24px;
 }
 
-body::before {
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='373' height='373'%3E%3Cg fill='%23e6e9ef'%3E%3Ccircle cx='21' cy='37' r='.8' opacity='.5'/%3E%3Ccircle cx='140' cy='12' r='.6' opacity='.35'/%3E%3Ccircle cx='301' cy='66' r='1' opacity='.45'/%3E%3Ccircle cx='88' cy='171' r='.6' opacity='.3'/%3E%3Ccircle cx='232' cy='143' r='.7' opacity='.4'/%3E%3Ccircle cx='350' cy='240' r='.6' opacity='.3'/%3E%3Ccircle cx='52' cy='296' r='.9' opacity='.4'/%3E%3Ccircle cx='190' cy='331' r='.6' opacity='.35'/%3E%3C/g%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='617' height='617'%3E%3Cg fill='%238b94a7'%3E%3Ccircle cx='410' cy='92' r='.7' opacity='.6'/%3E%3Ccircle cx='70' cy='480' r='.7' opacity='.5'/%3E%3Ccircle cx='520' cy='390' r='.8' opacity='.55'/%3E%3Ccircle cx='260' cy='560' r='.6' opacity='.5'/%3E%3Ccircle cx='330' cy='250' r='.6' opacity='.45'/%3E%3C/g%3E%3C/svg%3E");
-}
-
-body::after {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='811' height='811'%3E%3Cg fill='%23e6e9ef'%3E%3Ccircle cx='120' cy='210' r='1.1'/%3E%3Ccircle cx='640' cy='90' r='1'/%3E%3Ccircle cx='470' cy='600' r='1.2'/%3E%3C/g%3E%3C/svg%3E");
-  opacity: 0.7;
-  animation: twinkle 9s ease-in-out infinite;
-}
-
-@keyframes twinkle { 50% { opacity: 0.15; } }
+h1, h2, h3, h4, p { margin: 0; }
 
 h1, h2, h3, h4 {
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin: 0;
-  line-height: 1.2;
+  color: var(--on-surface);
+  font-family: var(--font-display);
 }
 
-/* Unbounded is for headlines only; everything else is IBM Plex Sans. */
-h1, h2 { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.02em; }
+a { color: inherit; }
 
-a { color: var(--primary-bright); }
+button, input, select { font: inherit; }
 
-/* Every interactive element gets a visible keyboard focus ring. The old hover-only
-   styling left keyboard users with no indication of where they were. */
 :focus-visible {
-  outline: 2px solid var(--sun);
-  outline-offset: 2px;
-  border-radius: 4px;
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
 }
-
-button { font-family: inherit; }
-
-/* ─── Shared primitives ──────────────────────────────────────────────────── */
 
 .page {
   min-height: 100vh;
-  padding: 5.5rem 0 4rem;
+  padding: 6rem 0 4rem;
 }
 
-.container {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: 0 1.5rem;
-}
-
+.container,
 .container-narrow {
-  max-width: 880px;
+  width: min(100%, var(--container-max));
   margin: 0 auto;
-  padding: 0 1.5rem;
+  padding-inline: var(--page-margin);
 }
+
+.container-narrow { max-width: 55rem; }
 
 .pageTitle {
-  font-size: clamp(1.75rem, 4vw, 2.4rem);
-  margin-bottom: 0.4rem;
-  color: var(--text);
+  margin-bottom: var(--space-sm);
+  color: var(--on-surface);
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  line-height: 1.22;
+  letter-spacing: -0.025em;
 }
 
 .pageSub {
-  color: var(--text-muted);
-  font-size: 0.95rem;
-  margin: 0 0 2rem;
+  margin-bottom: 2rem;
+  color: var(--on-surface-variant);
+  font-size: 0.875rem;
+  line-height: 1.57;
 }
 
 .card {
-  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
+  background: rgb(28 31 42 / 0.9);
+  box-shadow: var(--shadow-card);
 }
 
 .btn {
   display: inline-flex;
+  min-height: 2.75rem;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
-  font-family: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
-  padding: 0.6rem 1.15rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
+  gap: var(--space-sm);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: rgb(28 31 42 / 0.88);
+  color: var(--on-surface);
   cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
   text-decoration: none;
-  transition: background 0.18s, border-color 0.18s, transform 0.18s;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
 }
 
-.btn:hover:not(:disabled) { background: var(--surface-raised); border-color: var(--border-strong); }
-.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn:hover:not(:disabled) {
+  border-color: var(--outline);
+  background: var(--surface-high);
+}
+
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { cursor: not-allowed; opacity: 0.55; }
 
 .btnPrimary {
-  background: var(--sun);
-  border-color: var(--sun);
-  color: var(--void);
-  box-shadow: var(--raised-sm);
+  border-color: var(--primary-container);
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+  box-shadow: var(--shadow-primary);
 }
-.btnPrimary:hover:not(:disabled) { background: #f5c366; border-color: #f5c366; }
-.btnPrimary:active:not(:disabled) { box-shadow: none; transform: translateY(1px); }
 
-/* Secondary actions stay neutral, so the sun remains the only accent. */
-.btnGhost { background: transparent; border-color: var(--border-strong); color: var(--text); }
-.btnGhost:hover:not(:disabled) { background: var(--surface); }
+.btnPrimary:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+.btnGhost {
+  background: transparent;
+  color: var(--on-surface);
+}
 
 .input,
 .select {
-  background: var(--surface);
-  border: 1px solid transparent;
-  box-shadow: var(--pressed);
-  border-radius: var(--radius-sm);
-  padding: 0.6rem 0.9rem;
-  color: var(--text);
-  font-size: 0.9rem;
-  font-family: inherit;
   width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--surface-container);
+  box-shadow: var(--shadow-inset);
+  color: var(--on-surface);
+  font-size: 0.9rem;
+  padding: 0.7rem 0.9rem;
 }
 
-.input::placeholder { color: var(--text-faint); }
+.input::placeholder { color: var(--on-surface-variant); }
 .input:focus, .select:focus { border-color: var(--primary-border); outline: none; }
-.input:focus-visible, .select:focus-visible { outline: 2px solid var(--sun); outline-offset: 1px; }
-.select option { background: var(--surface-raised); }
+.select option { background: var(--surface-container); }
 
 .chip {
   display: inline-flex;
   align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.04);
+  color: var(--on-surface-variant);
   font-size: 0.7rem;
   font-weight: 600;
-  border-radius: 999px;
   padding: 0.2rem 0.6rem;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  background: rgb(255 255 255 / 0.05);
-}
-
-.srOnly:focus-visible {
-  position: fixed;
-  top: 0.75rem;
-  left: 0.75rem;
-  width: auto;
-  height: auto;
-  clip: auto;
-  margin: 0;
-  padding: 0.6rem 1rem;
-  background: var(--surface-raised);
-  color: var(--text);
-  border: 1px solid var(--primary);
-  border-radius: var(--radius-sm);
-  z-index: 100;
 }
 
 .srOnly {
   position: absolute;
-  width: 1px; height: 1px;
-  padding: 0; margin: -1px;
+  width: 1px;
+  height: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
-  white-space: nowrap;
+  margin: -1px;
+  padding: 0;
   border: 0;
+  white-space: nowrap;
+}
+
+.srOnly:focus-visible {
+  position: fixed;
+  z-index: 100;
+  top: 0.75rem;
+  left: 0.75rem;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0.6rem 1rem;
+  clip: auto;
+  border-radius: var(--radius-sm);
+  background: var(--surface-high);
+  color: var(--on-surface);
 }
 
 .skeleton {
-  background: var(--surface);
   border-radius: var(--radius-md);
+  background: var(--surface-container);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 .emptyState {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
   padding: 4.5rem 1.5rem;
-  color: var(--text-muted);
+  color: var(--on-surface-variant);
+  text-align: center;
 }
 
+.emptyState > p {
+  max-width: 42ch;
+  line-height: 1.5;
+}
+
+.emptyState > .btn { padding-inline: var(--space-lg); }
 
 .errorBox {
-  background: rgb(239 68 68 / 0.1);
-  border: 1px solid rgb(239 68 68 / 0.3);
-  color: var(--danger);
+  border: 1px solid rgb(255 180 171 / 0.35);
   border-radius: var(--radius-sm);
-  padding: 0.85rem 1.1rem;
+  background: rgb(147 0 10 / 0.35);
+  color: var(--error);
   font-size: 0.875rem;
+  padding: 0.85rem 1.1rem;
 }
 
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+@keyframes pulse { 50% { opacity: 0.45; } }
+
+@keyframes routeEnter {
+  from { opacity: 0; transform: translateY(0.375rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.routeEnter { animation: routeEnter 160ms ease-out both; }
+
+@media (max-width: 767px) {
+  .container,
+  .container-narrow { padding-inline: var(--page-margin-sm); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  body::after { animation: none; }
+  .routeEnter { animation: none; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
