@@ -8,6 +8,11 @@ import { useToast } from '@/components/Toast';
 import styles from './saved.module.css';
 
 const TABS: ('all' | SavedStatus)[] = ['all', 'saved', 'applied', 'submitted'];
+const TRACKER_TIPS = [
+  { title: 'Save what matters', body: 'Keep promising hackathons in one focused list.', marker: '01' },
+  { title: 'Track your progress', body: 'Move entries from saved to applied to submitted.', marker: '02' },
+  { title: 'Never miss a deadline', body: 'Add a hackathon to your calendar for every key date.', marker: '03' },
+];
 
 export default function SavedPage() {
   const { user, loading: authLoading } = useUser();
@@ -57,12 +62,15 @@ export default function SavedPage() {
   }
 
   return (
-    <div className="page">
-      <div className="container-narrow">
-        <h1 className="pageTitle">Saved hackathons</h1>
-        <p className="pageSub">
+    <div className={`page ${styles.page}`}>
+      <div className={`container-narrow ${styles.container}`}>
+        <div className={styles.header}>
+          <span className={styles.kicker}>ORBITAL TRACKER V2.4</span>
+          <h1 className={`pageTitle ${styles.title}`}>Saved hackathons</h1>
+          <p className={`pageSub ${styles.subtitle}`}>
           {saved.length} tracked · move each one along as you apply and submit
-        </p>
+          </p>
+        </div>
 
         {error && <div className="errorBox" style={{ marginBottom: '1.5rem' }}>{error}</div>}
 
@@ -86,9 +94,22 @@ export default function SavedPage() {
         )}
 
         {!loading && !error && visible.length === 0 && (
-          <div className="emptyState">
-            <p>Nothing {tab === 'all' ? 'saved' : `marked ${tab}`} yet.</p>
-            <Link href="/explore" className="btn btnGhost">Browse hackathons</Link>
+          <div className={`card ${styles.emptyCard}`}>
+            <div className={styles.bookmarkMedallion} aria-hidden="true">
+              <span className={styles.bookmarkIcon} />
+            </div>
+            <h2>{tab === 'all' ? 'Nothing saved yet.' : `Nothing marked ${tab} yet.`}</h2>
+            <p>Start building your tracker with the hackathons you want to pursue.</p>
+            <Link href="/explore" className="btn btnPrimary">Browse hackathons</Link>
+            <div className={styles.tips} aria-label="Tracker tips">
+              {TRACKER_TIPS.map((tip) => (
+                <article key={tip.marker} className={styles.tip}>
+                  <span className={styles.tipMarker} aria-hidden="true">{tip.marker}</span>
+                  <h3>{tip.title}</h3>
+                  <p>{tip.body}</p>
+                </article>
+              ))}
+            </div>
           </div>
         )}
 
