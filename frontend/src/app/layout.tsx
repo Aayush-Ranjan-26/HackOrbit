@@ -1,12 +1,15 @@
 import type { Metadata } from 'next';
-import { IBM_Plex_Sans, Unbounded } from 'next/font/google';
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import Nav from '@/components/Nav';
 import Providers from '@/components/Providers';
 
-// Self-hosted at build time by next/font, so no runtime request to Google.
-const plex = IBM_Plex_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-plex' });
-const unbounded = Unbounded({ subsets: ['latin'], variable: '--font-unbounded' });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['600', '700', '800'],
+  variable: '--font-jakarta',
+});
 
 export const metadata: Metadata = {
   title: 'HackOrbit — every hackathon, one feed',
@@ -16,14 +19,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    /*
-      Extensions rewrite the document shell before React hydrates — dark-mode
-      ones set color-scheme on <html>, password managers and blockers add
-      data-* attributes to <body>. Both were observed here and neither is
-      fixable from application code. suppressHydrationWarning applies only to
-      the element it is on, so every child is still checked normally.
-    */
-    <html lang="en" className={`${plex.variable} ${unbounded.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${jakarta.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
         <a href="#main" className="srOnly">Skip to content</a>
         <Providers>
