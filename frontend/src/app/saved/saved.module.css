@@ -1,32 +1,186 @@
+.page {
+  --stitch-panel: #171b26;
+  --stitch-panel-raised: #1c1f2a;
+  --stitch-border: #313540;
+  --stitch-amber: #f59e0b;
+  --stitch-amber-soft: #ffc174;
+  min-height: 100vh;
+  color: #f6f7fb;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.container { max-width: 1240px; min-height: calc(100vh - 60px); }
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.kicker {
+  margin-bottom: 12px;
+  border: 1px solid rgb(245 158 11 / 0.36);
+  border-radius: 9999px;
+  padding: 6px 12px;
+  color: var(--stitch-amber-soft);
+  background: rgb(245 158 11 / 0.1);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.title {
+  color: #f6f7fb;
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+  font-size: clamp(26px, 3vw, 30px);
+  line-height: 38px;
+  letter-spacing: -0.03em;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  color: #aeb5c4;
+  font-size: 14px;
+  line-height: 22px;
+}
+
 .tabs {
   display: flex;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 1.75rem;
+  margin-bottom: 24px;
 }
 
 .tab,
 .tabActive {
-  border-radius: var(--radius-sm);
-  padding: 0.4rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
+  border: 1px solid var(--stitch-border);
+  border-radius: 9999px;
+  padding: 9px 16px;
   cursor: pointer;
-  border: 1px solid var(--border);
-  background: rgb(255 255 255 / 0.04);
-  color: var(--text-muted);
+  background: rgb(28 31 42 / 0.76);
+  color: #aeb5c4;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  transition: color 0.18s, border-color 0.18s, background 0.18s;
 }
 
-.tab:hover { color: var(--text); border-color: var(--border-strong); }
+.tab:hover { color: #fff; border-color: rgb(255 193 116 / 0.55); }
 
 .tabActive {
-  background: var(--primary-dim);
-  border-color: var(--primary-border);
-  color: var(--primary-bright);
+  border-color: rgb(245 158 11 / 0.5);
+  background: rgb(245 158 11 / 0.13);
+  color: var(--stitch-amber-soft);
 }
 
 .list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 16px;
+}
+
+.emptyCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 auto;
+  padding: 40px 24px 24px;
+  border: 1px solid var(--stitch-border);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgb(28 31 42 / 0.9), rgb(23 27 38 / 0.72));
+  box-shadow: 10px 10px 24px rgb(0 0 0 / 0.26), -8px -8px 20px rgb(49 53 64 / 0.14);
+  text-align: center;
+}
+
+.bookmarkMedallion {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 20px;
+  border: 1px solid rgb(245 158 11 / 0.38);
+  border-radius: 50%;
+  background: rgb(245 158 11 / 0.12);
+  box-shadow: inset 3px 3px 8px rgb(0 0 0 / 0.22), 3px 3px 10px rgb(0 0 0 / 0.22);
+}
+
+.bookmarkIcon {
+  position: relative;
+  width: 18px;
+  height: 23px;
+  border: 2px solid var(--stitch-amber-soft);
+  border-radius: 4px 4px 2px 2px;
+}
+
+.bookmarkIcon::after {
+  position: absolute;
+  right: 2px;
+  bottom: -2px;
+  left: 2px;
+  height: 8px;
+  border-bottom: 2px solid var(--stitch-amber-soft);
+  background: var(--stitch-panel-raised);
+  clip-path: polygon(0 0, 50% 70%, 100% 0, 100% 100%, 0 100%);
+  content: '';
+}
+
+.emptyCard h2 {
+  margin: 0;
+  color: #f6f7fb;
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+  font-size: 18px;
+  line-height: 26px;
+}
+
+.emptyCard > p {
+  max-width: 42ch;
+  margin: 8px 0 20px;
+  color: #aeb5c4;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.emptyCard :global(.btn) { border-radius: 9999px; }
+
+.tips {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid rgb(49 53 64 / 0.75);
+  text-align: left;
+}
+
+.tip {
+  padding: 16px;
+  border: 1px solid rgb(49 53 64 / 0.8);
+  border-radius: 16px;
+  background: rgb(23 27 38 / 0.72);
+}
+
+.tipMarker {
+  color: var(--stitch-amber-soft);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.tip h3 {
+  margin: 10px 0 6px;
+  color: #f6f7fb;
+  font-family: 'Plus Jakarta Sans', Inter, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.tip p { margin: 0; color: #aeb5c4; font-size: 13px; line-height: 20px; }
+
+@media (max-width: 700px) {
+  .container { min-height: calc(100vh - 60px); }
+  .tips { grid-template-columns: 1fr; }
 }
