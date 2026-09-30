@@ -1,28 +1,17 @@
 import Link from 'next/link';
-import Orbit from '@/components/Orbit';
+import HomeVideoBackground from '@/components/HomeVideoBackground';
 import styles from './page.module.css';
 
-const FEATURES = [
-  {
-    title: 'One feed, five sources',
-    body: 'Listings from Devpost, Unstop, Devfolio, MLH and HackerEarth, refreshed every hour and de-duplicated, with filters you can share as a link.',
-  },
-  {
-    title: 'Deadlines on your calendar',
-    body: 'Save a hackathon and its registration, start, submission and end dates land on your calendar, next to whether you have applied or submitted.',
-  },
-  {
-    title: 'Picks matched to you',
-    body: 'Choose the domains you build in once, and For you lists the open hackathons that overlap them, soonest deadline first.',
-  },
-];
+const SOURCES = ['Devpost', 'Unstop', 'Devfolio', 'MLH', 'HackerEarth'];
 
 export default function Home() {
   return (
     <>
+      <HomeVideoBackground />
       <section className={styles.hero}>
-        <div className={`container ${styles.heroGrid}`}>
+        <div className={`container ${styles.heroContent}`}>
           <div className={styles.copy}>
+            <p className={styles.status}><span aria-hidden="true" /> Live orbital sync active</p>
             <h1 className={styles.title}>Every open hackathon, closest deadline first.</h1>
             <p className={styles.lede}>
               HackOrbit collects hackathons from Devpost, Unstop, Devfolio, MLH and HackerEarth into
@@ -34,27 +23,23 @@ export default function Home() {
               <Link href="/login" className="btn">Sign in</Link>
             </div>
           </div>
-          <Orbit />
-        </div>
-      </section>
 
-      <section className={styles.features} aria-label="What HackOrbit does">
-        <div className={`container ${styles.grid}`}>
-          {FEATURES.map((f) => (
-            <div key={f.title} className={styles.feature}>
-              <h2>{f.title}</h2>
-              <p>{f.body}</p>
-            </div>
-          ))}
+          <aside className={styles.orbitPanel} aria-label="Hackathon sources">
+            <p className={styles.panelEyebrow}>One orbit, five sources</p>
+            <p className={styles.panelCopy}>
+              Open opportunities stay in one focused feed, ordered around the deadline that matters next.
+            </p>
+            <ul className={styles.sourceList}>
+              {SOURCES.map((source) => <li key={source}>{source}</li>)}
+            </ul>
+          </aside>
         </div>
       </section>
 
       <footer className={styles.footer}>
         <div className="container">
           <span className={styles.brand}>HackOrbit</span>
-          <span className={styles.footNote}>
-            Listings belong to their source platforms and link back to them.
-          </span>
+          <span className={styles.footNote}>Listings belong to their source platforms and link back to them.</span>
         </div>
       </footer>
     </>
