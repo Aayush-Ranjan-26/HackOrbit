@@ -15,6 +15,8 @@ export default function AccountPage() {
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [busy, setBusy] = useState<'password' | 'signout' | 'delete' | null>(null);
   const [confirmEmail, setConfirmEmail] = useState('');
 
@@ -111,10 +113,15 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="page">
-      <div className="container-narrow">
-        <h1 className="pageTitle">Your account</h1>
-        <p className="pageSub">{user.email}</p>
+    <div className={`page ${styles.page}`}>
+      <div className={`container-narrow ${styles.container}`}>
+        <div className={styles.heading}>
+          <div>
+            <h1 className={`pageTitle ${styles.title}`}>Your account</h1>
+            <p className={`pageSub ${styles.subtitle}`}><span>Signed in as</span> {user.email}</p>
+          </div>
+          <span className={styles.sessionBadge}><span className={styles.sessionDot} /> Active Session</span>
+        </div>
 
         {recentSignIn === false && (
           <section className={`card ${styles.section}`} role="status">
@@ -134,30 +141,50 @@ export default function AccountPage() {
           <form onSubmit={changePassword} className={styles.form}>
             <div className={styles.field}>
               <label htmlFor="new-password">New password</label>
-              <input
-                id="new-password"
-                className="input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={8}
-                required
-                autoComplete="new-password"
-                placeholder="At least 8 characters"
-              />
+              <div className={styles.passwordWrap}>
+                <input
+                  id="new-password"
+                  className="input"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  minLength={8}
+                  required
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                />
+                <button
+                  type="button"
+                  className={styles.reveal}
+                  onClick={() => setShowPassword((value) => !value)}
+                  aria-label={showPassword ? 'Hide new password' : 'Show new password'}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
             <div className={styles.field}>
               <label htmlFor="confirm-password">Confirm new password</label>
-              <input
-                id="confirm-password"
-                className="input"
-                type="password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                minLength={8}
-                required
-                autoComplete="new-password"
-              />
+              <div className={styles.passwordWrap}>
+                <input
+                  id="confirm-password"
+                  className="input"
+                  type={showConfirm ? 'text' : 'password'}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  minLength={8}
+                  required
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className={styles.reveal}
+                  onClick={() => setShowConfirm((value) => !value)}
+                  aria-label={showConfirm ? 'Hide confirmed password' : 'Show confirmed password'}
+                >
+                  {showConfirm ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
             <button type="submit" className="btn btnPrimary" disabled={busy === 'password' || !recentSignIn}>
               {busy === 'password' ? 'Saving…' : 'Update password'}
