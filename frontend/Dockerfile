@@ -35,6 +35,7 @@ RUN addgroup -S app && adduser -S app -G app
 COPY --from=builder --chown=app:app /app/.next/standalone ./
 # Static assets are not traced into standalone; copy them in explicitly.
 COPY --from=builder --chown=app:app /app/.next/static ./.next/static
+COPY --from=builder --chown=app:app /app/public ./public
 
 USER app
 EXPOSE 3000
