@@ -98,16 +98,21 @@ function ExploreInner() {
   const filtered = search || domain || type !== 'All' || source !== 'All';
 
   return (
-    <div className="page">
-      <div className="container">
-        <h1 className="pageTitle">Explore hackathons</h1>
-        <p className="pageSub">
+    <div className={`page ${styles.page}`}>
+      <div className={`container ${styles.container}`}>
+        <div className={styles.pageHeader}>
+          <div className={styles.titleRow}>
+            <h1 className={`pageTitle ${styles.title}`}>Explore hackathons</h1>
+            <span className={styles.liveBadge}><span className={styles.liveDot} /> LIVE SYNC</span>
+          </div>
+          <p className={`pageSub ${styles.subtitle}`}>
           {loading
             ? 'Loading live listings…'
             : error
               ? 'Listings unavailable'
               : `${total} open hackathon${total === 1 ? '' : 's'} from Unstop, Devfolio, Devpost, HackerEarth and MLH`}
-        </p>
+          </p>
+        </div>
 
         {/* Sources */}
         <div className={styles.sources} role="group" aria-label="Filter by source">
@@ -142,7 +147,7 @@ function ExploreInner() {
             />
           </div>
 
-          <div>
+            <div className={styles.filterField}>
             <label htmlFor="type" className="srOnly">Format</label>
             <select id="type" className="select" value={type} onChange={(e) => setParams({ type: e.target.value })}>
               {TYPES.map((t) => (
@@ -151,7 +156,7 @@ function ExploreInner() {
             </select>
           </div>
 
-          <div>
+            <div className={styles.filterField}>
             <label htmlFor="domain" className="srOnly">Domain</label>
             <select id="domain" className="select" value={domain} onChange={(e) => setParams({ domain: e.target.value })}>
               <option value="">All domains</option>
@@ -161,7 +166,7 @@ function ExploreInner() {
             </select>
           </div>
 
-          <div>
+            <div className={styles.filterField}>
             <label htmlFor="sort" className="srOnly">Sort by</label>
             <select id="sort" className="select" value={sort} onChange={(e) => setParams({ sort: e.target.value })}>
               {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
