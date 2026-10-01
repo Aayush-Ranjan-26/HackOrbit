@@ -344,6 +344,6 @@ Deploy as a Next.js application:
 
 ---
 
-## 🔓 License
+## 🌟 License
 
 This project is licensed under the [MIT License](LICENSE).
